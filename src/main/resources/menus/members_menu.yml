@@ -1,0 +1,9 @@
+title: "📜 Состав клана"
+size: 6
+member_button:
+  display: "{#FFFF00}{player}"
+  rank: "🏅 {#808080}Ранг: {rank}"
+  online: "🌐 {#808080}Онлайн: {status}"
+online_status:
+  online: "{#00FF00}В сети"
+  offline: "{#FF0000}Оффлайн"

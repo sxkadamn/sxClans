@@ -1,0 +1,61 @@
+menu:
+  name: "🔰 &6&lИнформация о клане"
+  size: 6
+  item: "DIAMOND"
+  lore:
+    - "&8&m━━━━━━━━━━━━━━━"
+    - "🏰 &e&lКлан: &f{clan_name}"
+    - "🔰 &eВаш ранг: &f{yours_rank}"
+    - "📈 &eУровень: &f{clan_lvl}"
+    - "&8&m━━━━━━━━━━━━━━━"
+    - "👥 &fУчастников: &e{clan_members}"
+    - "⚔️ &fМодераторов: &e{clan_moderators}"
+    - "🛡️ &fЗаместителей: &e{clan_co_leaders}"
+    - "👑 &fВладельцев: &e{clan_leaders}"
+    - "&8&m━━━━━━━━━━━━━━━"
+    - "💰 &6Монеты: &e{clan_balance}"
+    - "💎 &bРубли: &e{clan_balance_rub}"
+  display:
+    clan_name: true
+    yours_rank: true
+    clan_lvl: true
+    clan_members: true
+    clan_moderators: true
+    clan_leaders: true
+    clan_co_leaders: true
+    clan_balance: true
+    clan_balance_rub: true
+  buttons:
+    leave:
+      slot: 46
+      item: "PAPER"
+      leader_display: "❌ &cРасформировать клан"
+      member_display: "🚪 &eПокинуть клан"
+      leader_message: "⚠️ &cВы успешно расформировали клан"
+      member_message: "✅ &aВы успешно покинули клан"
+    invite:
+      slot: 20
+      item: "LIME_BANNER"
+      display: "➕ &aПригласить игроков в ваш клан"
+    deposit:
+      slot: 22
+      item: "GOLD_INGOT"
+      display: "💰 &eОткрыть депозит клана"
+    withdraw:
+      slot: 23
+      item: "EMERALD"
+      display: "&aВывести деньги"
+    members:
+      slot: 21
+      item: "PLAYER_HEAD"
+      display: "&aУчастники клана"
+    settings:
+      slot: 24
+      item: "COMPARATOR"
+      display: "&6⚙ Управление кланом"
+    teleport_base:
+      slot: 31
+      item: "ENDER_PEARL"
+      display: "&b🏰 Телепортироваться на базу"
+      no_base_message: "&cВаш клан не имеет установленной точки базы!"
+      success_message: "&aВы телепортированы на базу клана!"

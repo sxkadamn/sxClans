@@ -1,0 +1,10 @@
+title: "&6Вывод денег из банка клана"
+input_text: "&7Введите сумму вывода..."
+icon: "GOLD_INGOT"
+errors:
+  empty_input: "&cВведите сумму!"
+  invalid_number: "&cНеправильный формат!"
+  negative_number: "&cСумма должна быть положительной!"
+  insufficient_funds: "&cВ банке клана недостаточно денег!"
+  economy_unavailable: "&cЭкономика недоступна!"
+success_message: "&aВы успешно вывели %amount% монет из банка клана!"

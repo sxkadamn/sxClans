@@ -1,0 +1,43 @@
+
+title: "&6Настройки клана"
+size: 3
+
+messages:
+  no_permission: "&cУ вас нет прав для управления настройками клана!"
+  max_limit_reached: "&cДостигнут максимальный лимит участников!"
+  pvp_enabled: "&aPvP включено!"
+  pvp_disabled: "&cPvP выключено!"
+  base_set: "&aБаза установлена на координаты: %x%, %y%, %z%!"
+  insufficient_funds: "&cНедостаточно средств для увеличения лимита!"
+  limit_increased: "&aЛимит участников увеличен до %new_limit%!"
+
+settings:
+  member_limit_increase_step: 5
+  member_limit_increase_cost: 1000.0
+  max_member_limit: 50
+
+buttons:
+  pvp_toggle:
+    enabled:
+      slot: 10
+      material: "DIAMOND_SWORD"
+      display: "&aPvP: Включено"
+      lore: "&7Нажмите, чтобы выключить PvP"
+    disabled:
+      slot: 10
+      material: "IRON_SWORD"
+      display: "&cPvP: Выключено"
+      lore: "&7Нажмите, чтобы включить PvP"
+  set_base:
+    slot: 12
+    material: "ENDER_PEARL"
+    display: "&bУстановить базу"
+    lore: "&7Установите точку базы клана на вашей текущей позиции"
+  increase_limit:
+    slot: 14
+    material: "EMERALD"
+    display: "&eУвеличить лимит участников"
+    lore:
+      - "&7Текущий лимит: %current_limit%"
+      - "&7Новый лимит: %new_limit%"
+      - "&7Стоимость: %cost%"

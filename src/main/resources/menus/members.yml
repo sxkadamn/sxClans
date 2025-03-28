@@ -1,0 +1,4 @@
+name: "👥 &aИгроки онлайн"
+size: 6
+max_slots: 45
+invite_display: "📩 &eПригласить: {player}"

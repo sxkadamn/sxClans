@@ -1,0 +1,4 @@
+name: sxClans
+version: '${project.version}'
+main: net.sxclans.bukkit.Depend
+api-version: '1.20'
