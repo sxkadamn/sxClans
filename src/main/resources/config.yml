@@ -31,6 +31,46 @@ sounds:
   clan_teleport:
     - "ENTITY_ENDERMAN_TELEPORT:1.0:1.0"
 
+holograms:
+  money_top:
+    enabled: true
+    location:
+      world: world
+      x: 100.5
+      y: 64.0
+      z: 200.5
+    update_interval_seconds: 300
+    header:
+      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ &6&l◈"
+      - "&7&m---------------------"
+    lines:
+      - "&e1. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
+      - "&72. &f{name} &8- &a{bank}$ &7(Лидер: {leader})"
+      - "&e3. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
+      - "&74. &f{name} &8- &a{bank}$ &7(Лидер: {leader})"
+      - "&e5. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
+    footer:
+      - "&7&m---------------------"
+      - "&6Обновлено: &e{time}"
+  level_top:
+    enabled: true
+    location:
+      world: world
+      x: 103.5
+      y: 64.0
+      z: 200.5
+    update_interval_seconds: 300
+    header:
+      - "&b&l◈ &3&lТОП-10 КЛАНОВ ПО УРОВНЮ &b&l◈"
+      - "&7&m---------------------"
+    lines:
+      - "&61. &e{name} &8- &bУр. {level} &7(Лидер: {leader})"
+      - "&72. &f{name} &8- &bУр. {level} &7(Лидер: {leader})"
+      - "&63. &e{name} &8- &bУр. {level} &7(Лидер: {leader})"
+    footer:
+      - "&7&m---------------------"
+      - "&6Обновлено: &e{time}"
+
 
 messages:
   kick_success: "&cВы исключили {player} из клана."

@@ -1,9 +1,11 @@
 package net.sxclans.bukkit;
 
 import net.lielibrary.bukkit.command.BaseCommand;
+import net.lielibrary.gui.impl.MenuListener;
 import net.sxclans.bukkit.command.UserCommands;
 import net.sxclans.bukkit.control.ControlerFights;
 import net.sxclans.bukkit.files.FilesManager;
+import net.sxclans.bukkit.holograms.HologramManager;
 import net.sxclans.common.Utility;
 import net.sxclans.common.clan.base.ClanBaseManager;
 import net.sxclans.common.clan.base.FileBasedClanManager;
@@ -22,6 +24,8 @@ public final class Depend extends JavaPlugin {
 
     private FilesManager filesManager;
 
+    private HologramManager hologramManager;
+
 
 
     @Override
@@ -38,11 +42,12 @@ public final class Depend extends JavaPlugin {
 
         filesManager = new FilesManager(this);
 
+        hologramManager = new HologramManager(this);
+
         getServer().getPluginManager().registerEvents(new ControlerFights(), this);
+        getServer().getPluginManager().registerEvents(new MenuListener(), this);
         BaseCommand.register(this, new UserCommands("clan"));
 
-        Utility.checkPlugin("Vault");
-        Utility.checkPlugin("lieLibrary");
     }
 
 
@@ -50,6 +55,7 @@ public final class Depend extends JavaPlugin {
     public void onDisable() {
         filesManager.saveMenuConfigs();
         clanManage.saveClans();
+        hologramManager.disable();
     }
 
     public FilesManager getFilesManager() {

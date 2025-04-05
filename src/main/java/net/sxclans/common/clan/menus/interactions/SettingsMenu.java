@@ -3,7 +3,6 @@ package net.sxclans.common.clan.menus.interactions;
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
 import net.lielibrary.gui.buttons.Button;
-import net.lielibrary.gui.buttons.ButtonListener;
 import net.sxclans.bukkit.files.FilesManagerInterface;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.integration.VaultEconomyProvider;
@@ -12,13 +11,9 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryClickEvent;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 
 public class SettingsMenu {

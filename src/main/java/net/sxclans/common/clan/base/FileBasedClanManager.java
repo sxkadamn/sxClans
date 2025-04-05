@@ -7,18 +7,20 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class FileBasedClanManager implements ClanBaseManager{
     private final File directory;
-    private final Map<String, Clan> clans;
-    private final Map<String, String> playerToClan;
+    private final Map<String, Clan> clans = new ConcurrentHashMap<>();
+    private final Map<String, String> playerToClan = new ConcurrentHashMap<>();
+    private final ReentrantLock saveLock = new ReentrantLock();
 
     public FileBasedClanManager(File directory) {
         this.directory = Objects.requireNonNull(directory, "Directory cannot be null");
-        this.clans = new HashMap<>();
-        this.playerToClan = new HashMap<>();
         if (!directory.exists()) {
             directory.mkdirs();
         }
@@ -27,12 +29,19 @@ public class FileBasedClanManager implements ClanBaseManager{
 
     public void loadClans() {
         File[] files = directory.listFiles((dir, name) -> name.endsWith(".clan"));
-        if (files == null) {
-            return;
-        }
-        for (File file : files) {
-            loadClanFromFile(file);
-        }
+        if (files == null) return;
+
+        Arrays.stream(files).parallel().forEach(file -> {
+            try {
+                Clan clan = readClanFromFile(file);
+                if (clan != null) {
+                    clans.put(clan.getName(), clan);
+                    clan.getMembers().forEach(member -> playerToClan.put(member, clan.getName()));
+                }
+            } catch (Exception e) {
+                System.err.println("Ошибка загрузки клана из " + file.getName() + ": " + e.getMessage());
+            }
+        });
     }
 
     private void loadClanFromFile(File file) {
@@ -52,18 +61,24 @@ public class FileBasedClanManager implements ClanBaseManager{
     }
 
     public void saveClan(Clan clan) {
-        File file = new File(directory, clan.getName() + ".clan");
-        saveClanToFile(file, clan);
-        clans.put(clan.getName(), clan);
+        saveLock.lock();
+        try {
+            File tempFile = new File(directory, clan.getName() + ".tmp");
+            File targetFile = new File(directory, clan.getName() + ".clan");
 
-        List<String> currentMembers = clan.getMembers();
-        playerToClan.entrySet().removeIf(entry -> entry.getValue().equals(clan.getName())
-                && !currentMembers.contains(entry.getKey()));
-        for (String member : currentMembers) {
-            playerToClan.put(member, clan.getName());
+            try (ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(tempFile.toPath()))) {
+                oos.writeObject(clan);
+            }
+
+            Files.move(tempFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            clans.put(clan.getName(), clan);
+            clan.getMembers().forEach(member -> playerToClan.put(member, clan.getName()));
+        } catch (Exception e) {
+            System.err.println("Ошибка сохранения клана " + clan.getName() + ": " + e.getMessage());
+        } finally {
+            saveLock.unlock();
         }
-
-        saveClans();
     }
 
     private void saveClanToFile(File file, Clan clan) {
@@ -79,16 +94,20 @@ public class FileBasedClanManager implements ClanBaseManager{
         }
     }
 
+
+
     public void removeClan(Clan clan) {
-        File file = new File(directory, clan.getName() + ".clan");
-        if (file.exists()) {
-            file.delete();
+        saveLock.lock();
+        try {
+            File file = new File(directory, clan.getName() + ".clan");
+            if (file.exists()) Files.delete(file.toPath());
+            clans.remove(clan.getName());
+            clan.getMembers().forEach(playerToClan::remove);
+        } catch (Exception e) {
+            System.err.println("Ошибка удаления клана " + clan.getName() + ": " + e.getMessage());
+        } finally {
+            saveLock.unlock();
         }
-        for (String member : clan.getMembers()) {
-            playerToClan.remove(member);
-        }
-        clans.remove(clan.getName());
-        saveClans();
     }
 
     public Clan getClan(String name) {
@@ -122,8 +141,8 @@ public class FileBasedClanManager implements ClanBaseManager{
     private Clan readClanFromFile(File file) {
         try (ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(file.toPath()))) {
             return (Clan) ois.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("Не удалось прочитать файл клана: " + file.getName());
             return null;
         }
     }
@@ -132,7 +151,7 @@ public class FileBasedClanManager implements ClanBaseManager{
         return directory;
     }
 
-    public HashMap<String, Clan> getClans() {
-        return (HashMap<String, Clan>) Collections.unmodifiableMap(clans);
+    public Map<String, Clan> getClans() {
+        return new HashMap<>(clans);
     }
 }

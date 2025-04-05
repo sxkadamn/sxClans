@@ -38,7 +38,7 @@ public class FactorMenu {
         Button mainButton = new Button(getMaterial(config, "menu.item"));
         mainButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.name", "Кнопка")));
         mainButton.setLoreList(ssucksuckLore(config.getStringList("menu.lore")));
-        mainButton.disableInteract(true);
+        mainButton.disableInteract(false);
         menu.setSlot(config.getInt("menu.main_slot", 13), mainButton);
 
         boolean isLeader = clan.getLeader().equals(player.getName());
@@ -46,7 +46,7 @@ public class FactorMenu {
         leaveButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(
                 isLeader ? config.getString("menu.buttons.leave.leader_display", "Выйти") : config.getString("menu.buttons.leave.member_display", "Покинуть клан")
         ));
-        leaveButton.disableInteract(true);
+        leaveButton.disableInteract(false);
         leaveButton.withListener(event -> {
             if (isLeader) {
                 Depend.getClanManage().removeClan(clan);
@@ -63,40 +63,40 @@ public class FactorMenu {
         if (isLeader) {
             Button inviteButton = new Button(getMaterial(config, "menu.buttons.invite.item"));
             inviteButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.invite.display", "Пригласить игрока")));
-            inviteButton.disableInteract(true);
+            inviteButton.disableInteract(false);
             inviteButton.withListener(event -> new InviteMenu(player, filesManager).open());
             menu.setSlot(config.getInt("menu.buttons.invite.slot", 30), inviteButton);
         }
 
         Button depositButton = new Button(getMaterial(config, "menu.buttons.deposit.item"));
         depositButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.deposit.display", "Пополнить банк")));
-        depositButton.disableInteract(true);
+        depositButton.disableInteract(false);
         depositButton.withListener(event -> new DepositMenu(filesManager).openDepositGUI(player, clan));
         menu.setSlot(config.getInt("menu.buttons.deposit.slot"), depositButton);
 
         Button withdrawButton = new Button(getMaterial(config, "menu.buttons.withdraw.item"));
         withdrawButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.withdraw.display", "Снять деньги")));
-        withdrawButton.disableInteract(true);
+        withdrawButton.disableInteract(false);
         withdrawButton.withListener(event -> new WithdrawMenu(filesManager).openWithdrawGUI(player, clan));
         menu.setSlot(config.getInt("menu.buttons.withdraw.slot"), withdrawButton);
 
         Button membersButton = new Button(getMaterial(config, "menu.buttons.members.item"));
         membersButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.members.display", "Список членов клана")));
         membersButton.withListener(event -> new MembersMenu(player, filesManager).open());
-        membersButton.disableInteract(true);
+        membersButton.disableInteract(false);
         menu.setSlot(config.getInt("menu.buttons.members.slot"), membersButton);
 
         if (clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
             Button settingsButton = new Button(getMaterial(config, "menu.buttons.settings.item"));
             settingsButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.settings.display", "Настройки клана")));
-            settingsButton.disableInteract(true);
+            settingsButton.disableInteract(false);
             settingsButton.withListener(event -> new SettingsMenu(player, clan, filesManager).open());
             menu.setSlot(config.getInt("menu.buttons.settings.slot"), settingsButton);
         }
 
         Button teleportButton = new Button(getMaterial(config, "menu.buttons.teleport_base.item"));
         teleportButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.teleport_base.display", "Телепорт к базе")));
-        teleportButton.disableInteract(true);
+        teleportButton.disableInteract(false);
         teleportButton.withListener(event -> {
             if (clan.getBaseLocation() != null) {
                 player.teleport(clan.getBaseLocation());

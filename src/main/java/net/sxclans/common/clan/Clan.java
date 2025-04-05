@@ -44,16 +44,14 @@ public class Clan implements Serializable {
     @Serial
     private void writeObject(ObjectOutputStream out) throws IOException {
         out.defaultWriteObject();
+        out.writeBoolean(baseLocation != null);
         if (baseLocation != null) {
-            out.writeBoolean(true);
             out.writeUTF(baseLocation.getWorld().getName());
             out.writeDouble(baseLocation.getX());
             out.writeDouble(baseLocation.getY());
             out.writeDouble(baseLocation.getZ());
             out.writeFloat(baseLocation.getYaw());
             out.writeFloat(baseLocation.getPitch());
-        } else {
-            out.writeBoolean(false);
         }
     }
 
@@ -62,24 +60,22 @@ public class Clan implements Serializable {
         in.defaultReadObject();
         if (in.readBoolean()) {
             String worldName = in.readUTF();
-            double x = in.readDouble();
-            double y = in.readDouble();
-            double z = in.readDouble();
-            float yaw = in.readFloat();
-            float pitch = in.readFloat();
             World world = Bukkit.getWorld(worldName);
             if (world != null) {
-                baseLocation = new Location(world, x, y, z, yaw, pitch);
-            } else {
-                baseLocation = null;
+                baseLocation = new Location(
+                        world,
+                        in.readDouble(),
+                        in.readDouble(),
+                        in.readDouble(),
+                        in.readFloat(),
+                        in.readFloat()
+                );
             }
-        } else {
-            baseLocation = null;
         }
     }
 
     public void save() {
-        Depend.getClanManage().saveClan(this);
+        Bukkit.getScheduler().runTaskAsynchronously(Depend.getInstance(), () -> Depend.getClanManage().saveClan(this));
     }
 
     public List<String> getMembers() {
@@ -87,10 +83,10 @@ public class Clan implements Serializable {
     }
 
     public void addMember(String playerName) {
-        if (members.size() < memberLimit && !members.contains(playerName)) {
-            members.add(playerName);
-            Depend.getClanManage().saveClan(this);
-        }
+        if (members.size() >= memberLimit || members.contains(playerName)) return;
+        members.add(playerName);
+        memberRanks.put(playerName, ClanRank.MEMBER);
+        save();
     }
 
     public void removeMember(String playerName) {
@@ -183,6 +179,8 @@ public class Clan implements Serializable {
     }
 
     public void setBaseLocation(Location location) {
+        if (location == null ||
+                location.getWorld() == null) throw new IllegalArgumentException("Локация не может быть null!");
         this.baseLocation = location;
         save();
     }

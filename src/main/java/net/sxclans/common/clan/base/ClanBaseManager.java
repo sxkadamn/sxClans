@@ -2,7 +2,7 @@ package net.sxclans.common.clan.base;
 
 import net.sxclans.common.clan.Clan;
 
-import java.util.HashMap;
+import java.util.Map;
 
 public interface ClanBaseManager {
     void loadClans();
@@ -14,7 +14,7 @@ public interface ClanBaseManager {
 
     void removeClan(Clan paramClan);
 
-    HashMap<String, Clan> getClans();
+    Map<String, Clan> getClans();
 
     Clan getClan(String paramString);
 
