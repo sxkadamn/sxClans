@@ -14,27 +14,15 @@ jobs:
         id: git_diff
         run: |
           git diff HEAD^ HEAD > diff.txt
-          DIFF_CONTENT=$(jq -Rs < diff.txt)
-          echo "DIFF=${DIFF_CONTENT}" >> $GITHUB_OUTPUT
+          echo "DIFF_CONTENT=$(jq -Rs < diff.txt)" >> $GITHUB_OUTPUT
           echo "DIFF_LINES=$(wc -l < diff.txt)" >> $GITHUB_OUTPUT
-
-      - name: Verify OpenAI key
-        run: |
-          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.OPENAI_API_KEY }}" \
-            "https://api.openai.com/v1/models")
-          if echo "$RESPONSE" | jq -e '.error' > /dev/null; then
-            echo "::error::Invalid OpenAI key"
-            exit 1
-          else
-            echo "OpenAI key is valid"
-          fi
 
       - name: Analyze with AI
         id: ai_analysis
         uses: actions/github-script@v6
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
-          DIFF: ${{ steps.git_diff.outputs.DIFF }}
+          DIFF: ${{ steps.git_diff.outputs.DIFF_CONTENT }}
         with:
           script: |
             const {OPENAI_KEY, DIFF} = process.env;
@@ -57,32 +45,42 @@ jobs:
               });
 
               const data = await response.json();
-              console.log('OpenAI response:', JSON.stringify(data, null, 2));
-
               if (!data.choices?.[0]?.message?.content) {
                 throw new Error('Invalid response from OpenAI');
               }
               return data.choices[0].message.content;
             } catch (error) {
-              console.error('AI analysis failed:', error);
               return `❌ Ошибка анализа: ${error.message}`;
             }
 
       - name: Prepare Telegram message
         run: |
-          MESSAGE="🤖 *AI Анализ изменений*:\n\n"\
-          "${{ steps.ai_analysis.outputs.result }}\n\n"\
-          "🔗 *Коммит*: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
-          echo "MESSAGE=${MESSAGE}" >> $GITHUB_ENV
+          # Формируем сообщение в файле
+          cat <<EOF > message.txt
+          🤖 *AI Анализ изменений*:
+
+          ${{ steps.ai_analysis.outputs.result }}
+
+          🔗 *Коммит*: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA
+          EOF
+          
+          # Сохраняем в переменную
+          echo "MESSAGE=$(cat message.txt | jq -Rs)" >> $GITHUB_ENV
 
       - name: Send to Telegram
         run: |
-          curl -X POST \
-            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          # Используем jq для корректного экранирования
+          JSON_PAYLOAD=$(jq -n \
+            --arg chat_id "5615087670" \
+            --arg text "$(cat message.txt)" \
+            '{
+              chat_id: $chat_id,
+              text: $text,
+              parse_mode: "MarkdownV2",
+              disable_web_page_preview: true
+            }')
+          
+          curl -v -X POST \
             -H "Content-Type: application/json" \
-            -d '{
-              "chat_id": "5615087670",
-              "text": "'"$MESSAGE"'",
-              "parse_mode": "MarkdownV2",
-              "disable_web_page_preview": true
-            }'
+            -d "$JSON_PAYLOAD" \
+            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
