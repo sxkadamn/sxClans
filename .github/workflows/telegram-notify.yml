@@ -10,10 +10,8 @@ jobs:
       - name: Prepare message
         id: prepare
         run: |
-          # Получаем информацию о коммите
           COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
           
-          # Формируем JSON-сообщение
           MESSAGE_JSON=$(jq -n \
             --arg repo "$GITHUB_REPOSITORY" \
             --arg commit "$COMMIT_MSG" \
