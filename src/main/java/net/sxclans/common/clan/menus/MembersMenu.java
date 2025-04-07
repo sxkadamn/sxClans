@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.meta.SkullMeta;
 
+import java.util.List;
 import java.util.Map;
 
 import java.util.Objects;
@@ -42,7 +43,9 @@ public class MembersMenu {
                 fileConfig.getString("member_button.rank"),
                 fileConfig.getString("member_button.online"),
                 fileConfig.getString("online_status.online"),
-                fileConfig.getString("online_status.offline")
+                fileConfig.getString("online_status.offline"),
+                Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
+                fileConfig.getIntegerList("filler.slots")
         );
         this.menu = clan != null
                 ? Plugin.getMenuManager().createMenuFromConfig(
@@ -54,6 +57,14 @@ public class MembersMenu {
 
     public void open() {
         if (menu == null || config == null) return;
+
+        for (int slot : config.fillerSlots()) {
+            if (slot >= 0 && slot < config.size()) {
+                menu.setSlot(slot, new Button(config.fillerMaterial())
+                        .setDisplay(" ")
+                        .applyMeta(meta -> meta));
+            }
+        }
 
         boolean hasPermission = clan.hasPermission(player.getName(), ClanRank.MODERATOR);
 
@@ -97,11 +108,13 @@ public class MembersMenu {
             String rank,
             String online,
             String onlineStatus,
-            String offlineStatus
+            String offlineStatus,
+            Material fillerMaterial,
+            List<Integer> fillerSlots
     ) {
         public MembersConfig {
             if (title == null || display == null || rank == null || online == null ||
-                    onlineStatus == null || offlineStatus == null) {
+                    onlineStatus == null || offlineStatus == null || fillerMaterial == null || fillerSlots == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in members_menu.yml");
             }
         }

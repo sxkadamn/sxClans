@@ -63,7 +63,9 @@ public class SettingsMenu {
                                         null,
                                         key.equals("pvp_toggle") ? null : fileConfig.getString("buttons." + key + ".display"),
                                         fileConfig.getStringList("buttons." + key + ".lore")
-                                )))
+                                ))),
+                Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
+                fileConfig.getIntegerList("filler.slots")
         );
         this.menu = Optional.ofNullable(config)
                 .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
@@ -79,6 +81,14 @@ public class SettingsMenu {
 
     public void open() {
         if (menu == null || config == null) return;
+
+        for (int slot : config.fillerSlots()) {
+            if (slot >= 0 && slot < config.size()) {
+                menu.setSlot(slot, new Button(config.fillerMaterial())
+                        .setDisplay(" ")
+                        .applyMeta(meta -> meta));
+            }
+        }
 
         boolean pvpEnabled = clan.isPvpEnabled();
         int currentLimit = clan.getMemberLimit();
@@ -141,7 +151,6 @@ public class SettingsMenu {
                                 player.closeInventory();
                                 new SettingsMenu(player, clan, filesManager).open();
                             });
-
                     menu.setSlot(btnConfig.slot(), button);
                 });
 
@@ -161,12 +170,14 @@ public class SettingsMenu {
             String baseSetMessage,
             String insufficientFundsMessage,
             String limitIncreasedMessage,
-            Map<String, ButtonConfig> buttons
+            Map<String, ButtonConfig> buttons,
+            Material fillerMaterial,
+            List<Integer> fillerSlots
     ) {
         public SettingsConfig {
             if (title == null || noPermission == null || maxLimitReached == null || pvpEnabledMessage == null ||
                     pvpDisabledMessage == null || baseSetMessage == null || insufficientFundsMessage == null ||
-                    limitIncreasedMessage == null) {
+                    limitIncreasedMessage == null || fillerMaterial == null || fillerSlots == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in clan_settings.yml");
             }
         }

@@ -16,6 +16,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.util.Consumer;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -52,7 +53,9 @@ public class MemberManageMenu {
                         Material.EMERALD,
                         fileConfig.getString("promote_button"),
                         fileConfig.getString("promote_lore")
-                )
+                ),
+                Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
+                fileConfig.getIntegerList("filler.slots")
         );
 
         this.menu = Plugin.getMenuManager().createMenuFromConfig(
@@ -65,8 +68,16 @@ public class MemberManageMenu {
     public void open() {
         if (menu == null || config == null) return;
 
+        for (int slot : config.fillerSlots()) {
+            if (slot >= 0 && slot < config.size()) {
+                menu.setSlot(slot, new Button(config.fillerMaterial())
+                        .setDisplay(" ")
+                        .applyMeta(meta -> meta));
+            }
+        }
+
         Stream.of(
-                Map.entry(config.kickButton(), (Consumer<InventoryClickEvent>) event -> {
+                Map.entry(config.kickButton().withSlot(config.kickSlot()), (Consumer<InventoryClickEvent>) event -> {
                     clan.removeMember(target.getName());
                     clan.getMemberRanks().remove(target.getName());
                     moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
@@ -78,7 +89,7 @@ public class MemberManageMenu {
                     clan.save();
                     moderator.closeInventory();
                 }),
-                Map.entry(config.promoteButton(), (Consumer<InventoryClickEvent>) event -> {
+                Map.entry(config.promoteButton().withSlot(config.promoteSlot()), (Consumer<InventoryClickEvent>) event -> {
                     ClanRank currentRank = clan.getRank(target.getName());
                     ClanRank nextRank = currentRank.getNextRank();
                     Optional.ofNullable(nextRank)
@@ -146,12 +157,14 @@ public class MemberManageMenu {
             int kickSlot,
             int promoteSlot,
             ButtonConfig kickButton,
-            ButtonConfig promoteButton
+            ButtonConfig promoteButton,
+            Material fillerMaterial,
+            List<Integer> fillerSlots
     ) {
         public MemberManageConfig {
             if (title == null || kickSuccess == null || kicked == null ||
                     promoteSuccess == null || promoted == null || maxRank == null ||
-                    kickButton == null || promoteButton == null) {
+                    kickButton == null || promoteButton == null || fillerMaterial == null || fillerSlots == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in member_manage.yml");
             }
         }

@@ -35,6 +35,18 @@ public class FactorMenu {
         int menuSize = config.getInt("menu.size");
         AnimatedMenu menu = Plugin.getMenuManager().createMenuFromConfig(menuName, menuSize, player);
 
+        Material fillerMaterial = getMaterial(config, "menu.filler.material");
+        List<Integer> fillerSlots = config.getIntegerList("menu.filler.slots");
+        for (int slot : fillerSlots) {
+            if (slot >= 0 && slot < menuSize) {
+                Button fillerButton = new Button(fillerMaterial)
+                        .setDisplay(" ")
+                        .disableInteract(true)
+                        .applyMeta(meta -> meta);
+                menu.setSlot(slot, fillerButton);
+            }
+        }
+
         Button mainButton = new Button(getMaterial(config, "menu.item"));
         mainButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.name")));
         mainButton.setLoreList(ssucksuckLore(config.getStringList("menu.lore")));
@@ -58,15 +70,17 @@ public class FactorMenu {
             }
             player.closeInventory();
         });
-        menu.setSlot(config.getInt("menu.buttons.leave.slot", 22), leaveButton);
+        menu.setSlot(config.getInt("menu.buttons.leave.slot", 46), leaveButton);
+
 
         if (isLeader) {
             Button inviteButton = new Button(getMaterial(config, "menu.buttons.invite.item"));
             inviteButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.invite.display")));
             inviteButton.disableInteract(false);
             inviteButton.withListener(event -> new InviteMenu(player, filesManager).open());
-            menu.setSlot(config.getInt("menu.buttons.invite.slot", 30), inviteButton);
+            menu.setSlot(config.getInt("menu.buttons.invite.slot", 20), inviteButton);
         }
+
 
         Button depositButton = new Button(getMaterial(config, "menu.buttons.deposit.item"));
         depositButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.deposit.display")));
@@ -80,11 +94,13 @@ public class FactorMenu {
         withdrawButton.withListener(event -> new WithdrawMenu(filesManager).openWithdrawGUI(player, clan));
         menu.setSlot(config.getInt("menu.buttons.withdraw.slot"), withdrawButton);
 
+
         Button membersButton = new Button(getMaterial(config, "menu.buttons.members.item"));
         membersButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.members.display")));
         membersButton.withListener(event -> new MembersMenu(player, filesManager).open());
         membersButton.disableInteract(false);
         menu.setSlot(config.getInt("menu.buttons.members.slot"), membersButton);
+
 
         if (clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
             Button settingsButton = new Button(getMaterial(config, "menu.buttons.settings.item"));
@@ -93,6 +109,7 @@ public class FactorMenu {
             settingsButton.withListener(event -> new SettingsMenu(player, clan, filesManager).open());
             menu.setSlot(config.getInt("menu.buttons.settings.slot"), settingsButton);
         }
+
 
         Button teleportButton = new Button(getMaterial(config, "menu.buttons.teleport_base.item"));
         teleportButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.teleport_base.display")));

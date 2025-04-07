@@ -18,6 +18,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.SkullMeta;
 
 
+import java.util.List;
 import java.util.Optional;
 
 
@@ -37,7 +38,9 @@ public class InviteMenu {
                 fileConfig.getString("name"),
                 fileConfig.getInt("size"),
                 fileConfig.getInt("max_slots"),
-                fileConfig.getString("invite_display")
+                fileConfig.getString("invite_display"),
+                Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
+                fileConfig.getIntegerList("filler.slots")
         );
         this.menu = Optional.of(config)
                 .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
@@ -48,6 +51,14 @@ public class InviteMenu {
 
     public void open() {
         if (menu == null || config == null) return;
+
+        for (int slot : config.fillerSlots()) {
+            if (slot >= 0 && slot < config.size()) {
+                menu.setSlot(slot, new Button(config.fillerMaterial())
+                        .setDisplay(" ")
+                        .applyMeta(meta -> meta));
+            }
+        }
 
         Bukkit.getOnlinePlayers().stream()
                 .filter(p -> Depend.getClanManage().getMembersClan(p.getName()) == null)
@@ -81,10 +92,12 @@ public class InviteMenu {
             String name,
             int size,
             int maxSlots,
-            String inviteDisplay
+            String inviteDisplay,
+            Material fillerMaterial,
+            List<Integer> fillerSlots
     ) {
         public InviteConfig {
-            if (name == null || inviteDisplay == null) {
+            if (name == null || inviteDisplay == null || fillerMaterial == null || fillerSlots == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in members.yml");
             }
         }
