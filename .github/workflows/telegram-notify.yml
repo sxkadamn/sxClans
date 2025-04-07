@@ -1,4 +1,4 @@
-name: Telegram Notifier
+name: AI Git Changes Notifier
 on: [push]
 
 jobs:
@@ -10,29 +10,56 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Prepare message
+      - name: Analyze changes with AI
+        id: ai_analysis
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          # Получаем данные
-          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g')
+          # Получаем diff между коммитами
+          DIFF_CONTENT=$(git diff HEAD^ HEAD)
           
-          # Формируем сообщение в одну строку
-          MESSAGE="Новые изменения в ${GITHUB_REPOSITORY##*/} | Коммит: ${COMMIT_MSG} | Автор: ${GITHUB_ACTOR} | Файлы: ${CHANGED_FILES%,} | Ссылка: https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          # Формируем запрос к ChatGPT
+          ANALYSIS=$(curl -s https://api.openai.com/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $OPENAI_KEY" \
+            -d '{
+              "model": "gpt-3.5-turbo",
+              "messages": [
+                {
+                  "role": "system", 
+                  "content": "Ты - технический писатель. Анализируй git diff и объясняй изменения понятным языком для игроков. Формат:\n• [Тип изменения]: [Файл] - [Объяснение]\n• Пример: \"• Оптимизация: player/movement.cs - Улучшена обработка столкновений\""
+                },
+                {
+                  "role": "user",
+                  "content": "'"$DIFF_CONTENT"'"
+                }
+              ],
+              "temperature": 0.7
+            }' | jq -r '.choices[0].message.content')
           
-          # Сохраняем в файл
+          echo "ANALYSIS<<EOF" >> $GITHUB_OUTPUT
+          echo "$ANALYSIS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Compose message
+        run: |
+          # Базовые данные коммита
+          COMMIT_INFO=$(git log -1 --pretty=format:'📌 *Коммит*: %s\n👤 *Автор*: %an\n📅 *Дата*: %cd' --date=format:'%Y-%m-%d %H:%M')
+          
+          # Формируем финальное сообщение
+          MESSAGE="🚀 *Детали обновления*: ${GITHUB_REPOSITORY##*/}\n\n${COMMIT_INFO}\n\n${{ steps.ai_analysis.outputs.ANALYSIS }}\n\n🔗 *Полные изменения*: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+          
           echo "$MESSAGE" > message.txt
-          echo "MESSAGE=$(cat message.txt)" >> $GITHUB_ENV
+          echo "MESSAGE=$(jq -Rs < message.txt)" >> $GITHUB_OUTPUT
 
       - name: Send to Telegram
         run: |
-          # Читаем сообщение из файла
-          MESSAGE_CONTENT=$(cat message.txt)
-          
-          # Формируем простейший JSON
-          JSON_DATA="{\"chat_id\":\"5615087670\",\"text\":\"$MESSAGE_CONTENT\"}"
-          
-          # Отправляем
-          curl -v -X POST \
-            -H "Content-Type: application/json" \
-            -d "$JSON_DATA" \
-            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+          curl -X POST \
+          -H "Content-Type: application/json" \
+          -d '{
+            "chat_id": "5615087670",
+            "text": '"$(cat message.txt | jq -Rs)"',
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": true
+          }' \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
