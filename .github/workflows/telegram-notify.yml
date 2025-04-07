@@ -4,67 +4,19 @@ on: [push]
 jobs:
   notify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Extract commit data
-        id: git-info
+      - uses: actions/checkout@v4
+      
+      - name: Prepare message
         run: |
-          # Экранируем специальные символы для MarkdownV2
-          LAST_COMMIT=$(git log -1 --pretty=format:'%h - %an: %s (%cr)' | sed -e 's/[_\*\[\]()~`>#\+\-=|{}\.!]/\\&/g')
-          ALL_COMMITS=$(git log --pretty=format:'• %h - %an: %s (%cr)' HEAD^..HEAD | sed -e 's/[_\*\[\]()~`>#\+\-=|{}\.!]/\\&/g')
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | sed -e 's/[_\*\[\]()~`>#\+\-=|{}\.!]/\\&/g')
+          # Простейший текст без форматирования
+          MESSAGE="📌 New push to ${GITHUB_REPOSITORY}
+          Commit: $(git log -1 --pretty=format:'%h - %s')
+          Author: ${GITHUB_ACTOR}
+          View: https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
           
-          echo "LAST_COMMIT=${LAST_COMMIT}" >> $GITHUB_OUTPUT
-          echo "ALL_COMMITS=${ALL_COMMITS}" >> $GITHUB_OUTPUT
-          echo "CHANGED_FILES=${CHANGED_FILES}" >> $GITHUB_OUTPUT
-          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')" >> $GITHUB_OUTPUT
-
-      - name: Compose notification
-        id: compose
-        run: |
-          # Формируем сообщение с правильным экранированием
-          MESSAGE=$(cat <<EOF
-          🔔 *Новые изменения в репозитории* \\[${GITHUB_REPOSITORY//_/\\_}\\]
+          # URL-кодирование
+          ENCODED_MSG=$(echo "$MESSAGE" | sed -e 's/ /%20/g' -e 's/\n/%0A/g')
           
-          📌 *Последний коммит:*
-          \`\`\`
-          ${{ steps.git-info.outputs.LAST_COMMIT }}
-          \`\`\`
-          
-          📋 *Все коммиты:*
-          ${{ steps.git-info.outputs.ALL_COMMITS }}
-          
-          📂 *Измененные файлы:*
-          \`\`\`
-          ${{ steps.git-info.outputs.CHANGED_FILES }}
-          \`\`\`
-          
-          👤 *Автор:* ${GITHUB_ACTOR//_/\\_}
-          🏷 *Версия:* ${{ steps.git-info.outputs.VERSION }}
-          🔗 *Ссылка:* [Открыть изменения](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
-          EOF
-          )
-          
-          # Сохраняем сообщение как output
-          MESSAGE_JSON=$(jq -n --arg msg "$MESSAGE" '{message: $msg}')
-          echo "MESSAGE_JSON=${MESSAGE_JSON}" >> $GITHUB_OUTPUT
-          echo "Сообщение сформировано:"
-          echo "${MESSAGE}"
-
-      - name: Send to Telegram
-        run: |
-          curl -v -X POST \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "5615087670",
-            "text": ${{ steps.compose.outputs.MESSAGE_JSON }.message},
-            "parse_mode": "MarkdownV2",
-            "disable_web_page_preview": true
-          }' \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+          # Отправка через GET-запрос (самый надёжный способ)
+          curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage?chat_id=5615087670&text=$ENCODED_MSG"
