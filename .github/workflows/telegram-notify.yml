@@ -1,32 +1,50 @@
-  - name: Send to Telegram
+name: Telegram Notify
+
+on:
+  push:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Чтобы был доступен предыдущий коммит
+
+      - name: Get commit message and diff
+        id: commit_info
         run: |
-          TELEGRAM_BOT_TOKEN="7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
-          CHAT_ID="5615087670"
+          COMMIT_MSG=$(git log -1 --pretty=format:"%s%n%n%b")
+          DIFF=$(git diff HEAD^ HEAD --stat)
 
-          COMMIT_MESSAGE=$(git log -1 --pretty=format:"%s%n%n%b")
-          COMMIT_DIFF=$(git diff HEAD^ HEAD)
-
-          escape_markdown() {
+          # Экранируем спецсимволы MarkdownV2
+          escape() {
             echo "$1" | sed \
+              -e 's/\\/\\\\/g' \
               -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' \
               -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' \
               -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' \
-              -e 's/=/\\=/g' -e 's/!/\\!/g' -e 's/\./\\./g'
+              -e 's/\=/\\=/g' -e 's/\!/\\!/g' -e 's/\./\\./g'
           }
 
-          ESCAPED_MESSAGE=$(escape_markdown "$COMMIT_MESSAGE")
-          ESCAPED_DIFF=$(escape_markdown "$COMMIT_DIFF")
+          ESCAPED_MSG=$(escape "$COMMIT_MSG")
+          ESCAPED_DIFF=$(escape "$DIFF")
 
-          SHORT_DIFF=$(echo "$ESCAPED_DIFF" | head -n 50)
-          [ $(echo "$SHORT_DIFF" | wc -c) -gt 3000 ] && SHORT_DIFF="$(echo "$SHORT_DIFF" | head -c 3000)..."
+          echo "COMMIT_MESSAGE=${ESCAPED_MSG}" >> $GITHUB_OUTPUT
+          echo "COMMIT_DIFF=${ESCAPED_DIFF}" >> $GITHUB_OUTPUT
+          echo "COMMIT_URL=https://github.com/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
 
-          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+      - name: Send message to Telegram
+        run: |
+          TOKEN="7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
+          CHAT_ID="5615087670"
 
-          MESSAGE="🚀 *Новый коммит:*\n\n*📄 Описание:*\n${ESCAPED_MESSAGE}\n\n🛠 *Изменения:*\n\`\`\`\n${SHORT_DIFF}\n\`\`\`\n🔗 [Посмотреть на GitHub](${COMMIT_URL})"
+          TEXT="🚀 *Новый коммит в репозитории*\n\n📄 *Описание:*\n${{ steps.commit_info.outputs.COMMIT_MESSAGE }}\n\n🛠 *Изменения:*\n\`\`\`\n${{ steps.commit_info.outputs.COMMIT_DIFF }}\n\`\`\`\n🔗 [Посмотреть на GitHub](${{ steps.commit_info.outputs.COMMIT_URL }})"
 
-          JSON_PAYLOAD=$(jq -n \
+          JSON=$(jq -n \
             --arg chat_id "$CHAT_ID" \
-            --arg text "$MESSAGE" \
+            --arg text "$TEXT" \
             '{
               chat_id: $chat_id,
               text: $text,
@@ -36,5 +54,5 @@
 
           curl -s -X POST \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
-            "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage"
+            -d "$JSON" \
+            "https://api.telegram.org/bot$TOKEN/sendMessage"
