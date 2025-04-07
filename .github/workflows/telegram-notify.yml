@@ -1,16 +1,26 @@
 name: Telegram Notifier
 on: [push]
+
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
+        with:
+          fetch-depth: 0  # Получаем полную историю коммитов
+      
+      - name: Get commit info
+        id: commits
+        run: |
+          echo "COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Send to Telegram
+        run: |
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
-            "chat_id": "5615087670",
-            "text": "Новый пуш в ${GITHUB_REPOSITORY}\n\nКоммит: ${GITHUB_SHA}\nАвтор: ${GITHUB_ACTOR}",
+            "chat_id": "ВАШ_USER_ID",
+            "text": "📌 Новые изменения в ${GITHUB_REPOSITORY}\n\nКоммиты:\n${{ steps.commits.outputs.COMMITS }}\n\nАвтор: ${GITHUB_ACTOR}",
             "parse_mode": "Markdown"
           }' \
-          https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
