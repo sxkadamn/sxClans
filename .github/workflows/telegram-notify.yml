@@ -1,0 +1,16 @@
+name: Telegram Notifier
+on: [push]
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          curl -X POST \
+          -H "Content-Type: application/json" \
+          -d '{
+            "chat_id": "5615087670",
+            "text": "Новый пуш в ${GITHUB_REPOSITORY}\n\nКоммит: ${GITHUB_SHA}\nАвтор: ${GITHUB_ACTOR}",
+            "parse_mode": "Markdown"
+          }' \
+          https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage
