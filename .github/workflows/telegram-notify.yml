@@ -5,41 +5,36 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Debug info
+      - name: Prepare message
+        id: prepare
         run: |
-          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
-          echo "GITHUB_SHA: ${GITHUB_SHA}"
-          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
-          echo "Current directory: $(pwd)"
-          echo "Files:"
-          ls -la
-
-      - name: Test Telegram API
-        run: |
-          curl -v -X GET \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe"
-
-      - name: Send simplest message
-        run: |
-          curl -v -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "5615087670",
-            "text": "Simple test message from GitHub Actions"
-          }'
-
-      - name: Send actual notification
-        run: |
+          # Получаем информацию о коммите
           COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
+          
+          # Формируем JSON-сообщение
+          MESSAGE_JSON=$(jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg commit "$COMMIT_MSG" \
+            --arg actor "$GITHUB_ACTOR" \
+            --arg sha "$GITHUB_SHA" \
+            '{
+              "chat_id": "5615087670",
+              "text": ("📌 New push to " + $repo + 
+                      "\nCommit: " + $commit + 
+                      "\nAuthor: " + $actor + 
+                      "\nLink: https://github.com/" + $repo + "/commit/" + $sha),
+              "parse_mode": "HTML"
+            }')
+          
+          echo "MESSAGE_JSON=${MESSAGE_JSON}" >> $GITHUB_OUTPUT
+          echo "Generated message:"
+          echo "$MESSAGE_JSON" | jq -r '.text'
+
+      - name: Send to Telegram
+        run: |
           curl -v -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
           -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "5615087670",
-            "text": "New push to ${GITHUB_REPOSITORY}\nCommit: ${COMMIT_MSG}\nAuthor: ${GITHUB_ACTOR}\nLink: https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}",
-            "parse_mode": "HTML"
-          }'
+          -d '${{ steps.prepare.outputs.MESSAGE_JSON }}' \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
