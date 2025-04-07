@@ -9,14 +9,11 @@ jobs:
       
       - name: Prepare message
         run: |
-          # Простейший текст без форматирования
           MESSAGE="📌 New push to ${GITHUB_REPOSITORY}
           Commit: $(git log -1 --pretty=format:'%h - %s')
           Author: ${GITHUB_ACTOR}
           View: https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
           
-          # URL-кодирование
           ENCODED_MSG=$(echo "$MESSAGE" | sed -e 's/ /%20/g' -e 's/\n/%0A/g')
           
-          # Отправка через GET-запрос (самый надёжный способ)
           curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage?chat_id=5615087670&text=$ENCODED_MSG"
