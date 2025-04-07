@@ -1,4 +1,4 @@
-name: Telegram Channel Notifier
+name: Telegram Notifier
 on: [push]
 
 jobs:
@@ -7,70 +7,35 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+
+      - name: Verify bot access
+        run: |
+          echo "Проверяем доступность бота..."
+          curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe" | jq
+          echo ""
+
+      - name: Test simple message
+        run: |
+          curl -v -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d '{"chat_id": "5615087670", "text": "Тестовое сообщение из GitHub"}'
 
       - name: Prepare notification
-        id: prepare
         run: |
-          # Получаем детали коммитов
-          COMMIT_HASH=$(git log -1 --pretty=format:'%h')
-          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
-          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed -e 's/[][_*`]/\\&/g')
-          COMMIT_DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
-          COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g; s/[][_*`]/\\&/g')
+          COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
+          echo "REPO=${GITHUB_REPOSITORY}" >> $GITHUB_ENV
+          echo "COMMIT=${COMMIT_MSG}" >> $GITHUB_ENV
+          echo "ACTOR=${GITHUB_ACTOR}" >> $GITHUB_ENV
+          echo "SHA=${GITHUB_SHA}" >> $GITHUB_ENV
 
-          # Формируем сообщение с правильным экранированием
-          MESSAGE=$(cat <<EOF
-          🚀 *Новый код в проекте* \\[${GITHUB_REPOSITORY##*///_/\\_}\\]
-          
-          📝 *Коммит:* [${COMMIT_HASH//_/\\_}](${COMMIT_LINK})
-          ✍️ *Автор:* ${COMMIT_AUTHOR//_/\\_}
-          📅 *Дата:* ${COMMIT_DATE}
-          
-          💬 *Сообщение:*
-          \`\`\`
-          ${COMMIT_MESSAGE}
-          \`\`\`
-          
-          📂 *Измененные файлы:*
-          \`\`\`
-          ${CHANGED_FILES%, }
-          \`\`\`
-          
-          🔍 *Полные изменения:*
-          [Просмотреть на GitHub](${COMMIT_LINK})
-          EOF
-          )
-
-          # Сохраняем сообщение (альтернативный способ)
-          echo "${MESSAGE}" > message.txt
-          echo "MESSAGE=$(cat message.txt | jq -Rs)" >> $GITHUB_OUTPUT
-
-          echo "Сообщение сформировано:"
-          echo "${MESSAGE}"
-
-      - name: Send to Telegram Channel
+      - name: Send formatted message
         run: |
-          # Читаем сообщение из файла
-          MESSAGE=$(cat message.txt)
-          
-          # Формируем JSON вручную
-          JSON_PAYLOAD=$(jq -n \
-            --arg chat_id "5615087670" \
-            --arg text "$MESSAGE" \
-            '{
-              chat_id: $chat_id,
-              text: $text,
-              parse_mode: "MarkdownV2",
-              disable_web_page_preview: false
-            }')
-          
-          echo "Отправляем payload:"
-          echo "$JSON_PAYLOAD" | jq .
-
           curl -v -X POST \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
-            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "chat_id": "5615087670",
+            "text": "📌 Репозиторий: ${{ env.REPO }}\n\n🔹 Коммит: ${{ env.COMMIT }}\n👤 Автор: ${{ env.ACTOR }}\n🔗 Ссылка: https://github.com/${{ env.REPO }}/commit/${{ env.SHA }}",
+            "parse_mode": "HTML"
+          }'
