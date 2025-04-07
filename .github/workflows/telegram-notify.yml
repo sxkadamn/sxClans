@@ -13,17 +13,20 @@ jobs:
       - name: Prepare notification
         id: prepare
         run: |
+          # Получаем детали коммитов
           COMMIT_HASH=$(git log -1 --pretty=format:'%h')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
-          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed 's/"/\\"/g')
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed -e 's/[][_*`]/\\&/g')
           COMMIT_DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
           COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g')
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g; s/[][_*`]/\\&/g')
 
-          MESSAGE="🚀 *Новый код в проекте* \\[${GITHUB_REPOSITORY##*/}\\]
+          # Формируем сообщение с правильным экранированием
+          MESSAGE=$(cat <<EOF
+          🚀 *Новый код в проекте* \\[${GITHUB_REPOSITORY##*///_/\\_}\\]
           
-          📝 *Коммит:* [${COMMIT_HASH}](${COMMIT_LINK})
-          ✍️ *Автор:* ${COMMIT_AUTHOR}
+          📝 *Коммит:* [${COMMIT_HASH//_/\\_}](${COMMIT_LINK})
+          ✍️ *Автор:* ${COMMIT_AUTHOR//_/\\_}
           📅 *Дата:* ${COMMIT_DATE}
           
           💬 *Сообщение:*
@@ -37,23 +40,37 @@ jobs:
           \`\`\`
           
           🔍 *Полные изменения:*
-          [Просмотреть на GitHub](${COMMIT_LINK})"
+          [Просмотреть на GitHub](${COMMIT_LINK})
+          EOF
+          )
 
-          echo "MESSAGE<<EOF" >> $GITHUB_OUTPUT
-          echo "${MESSAGE}" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # Сохраняем сообщение (альтернативный способ)
+          echo "${MESSAGE}" > message.txt
+          echo "MESSAGE=$(cat message.txt | jq -Rs)" >> $GITHUB_OUTPUT
 
           echo "Сообщение сформировано:"
           echo "${MESSAGE}"
 
       - name: Send to Telegram Channel
         run: |
-          curl -X POST \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "5615087670",
-            "text": "${{ steps.prepare.outputs.MESSAGE }}",
-            "parse_mode": "MarkdownV2",
-            "disable_web_page_preview": false
-          }' \
-          "https://api.telegram.org/bot${7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q}/sendMessage"
+          # Читаем сообщение из файла
+          MESSAGE=$(cat message.txt)
+          
+          # Формируем JSON вручную
+          JSON_PAYLOAD=$(jq -n \
+            --arg chat_id "5615087670" \
+            --arg text "$MESSAGE" \
+            '{
+              chat_id: $chat_id,
+              text: $text,
+              parse_mode: "MarkdownV2",
+              disable_web_page_preview: false
+            }')
+          
+          echo "Отправляем payload:"
+          echo "$JSON_PAYLOAD" | jq .
+
+          curl -v -X POST \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" \
+            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
