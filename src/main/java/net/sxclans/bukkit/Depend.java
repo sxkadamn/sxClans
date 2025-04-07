@@ -31,9 +31,6 @@ public final class Depend extends JavaPlugin {
 
     private HologramManager hologramManager;
 
-    private final String telegramBotToken = "7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q";
-    private final String telegramChatId = "-1002431189334";
-
 
 
     @Override
