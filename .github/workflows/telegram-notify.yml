@@ -13,26 +13,26 @@ jobs:
         id: commits
         run: |
           echo "COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD | sed 's/[][_*`]/\\&/g')" >> $GITHUB_OUTPUT
-          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo '0.0.1')" >> $GITHUB_OUTPUT
-          echo "Generated commit info:"
-          git log --pretty=format:'%h - %an: %s' HEAD^..HEAD
+          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')" >> $GITHUB_OUTPUT
       
-      - name: Test Telegram API
+      - name: Send to Telegram
         run: |
-          curl -s -X POST \
-          -H "Content-Type: application/json" \
-          -d '{"chat_id": "5615087670", "text": "Test message from GitHub Actions"}' \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
-          && echo -e "\nTelegram API request sent successfully" \
-          || echo -e "\nFailed to send Telegram message"
-      
-      - name: Send formatted notification
-        run: |
-          curl -v -X POST \
+          MESSAGE=$(cat <<EOF
+          📌 Новые изменения в $GITHUB_REPOSITORY
+
+          Коммиты:
+          ${{ steps.commits.outputs.COMMITS }}
+
+          Автор: $GITHUB_ACTOR
+          Версия: ${{ steps.commits.outputs.VERSION }}
+          EOF
+          )
+
+          curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "📌 Новые изменения в ${GITHUB_REPOSITORY}\n\nКоммиты:\n${{ steps.commits.outputs.COMMITS }}\n\nАвтор: ${GITHUB_ACTOR}\nВерсия: ${{ steps.commits.outputs.VERSION }}",
-            "parse_mode": "HTML"
+            "text": "'"$MESSAGE"'",
+            "parse_mode": "Markdown"
           }' \
           "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
