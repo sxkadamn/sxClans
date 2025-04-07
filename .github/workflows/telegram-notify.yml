@@ -1,27 +1,62 @@
-name: Telegram Notify
+name: Telegram Channel Notifier
 on: [push]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Prepare and send message
+      - name: Prepare notification
+        id: prepare
         run: |
-          COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
+          # Получаем детали коммитов
+          COMMIT_HASH=$(git log -1 --pretty=format:'%h')
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed 's/"/\\"/g')
+          COMMIT_DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
+          COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g')
+
+          # Формируем красивое сообщение для канала
+          MESSAGE="🚀 *Новый код в проекте* \\[${GITHUB_REPOSITORY##*/}\\]
           
-          MESSAGE="📌 New push to $GITHUB_REPOSITORY
-          Commit: $COMMIT_MSG
-          Author: $GITHUB_ACTOR
-          Link: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+          📝 *Коммит:* [${COMMIT_HASH}](${COMMIT_LINK})
+          ✍️ *Автор:* ${COMMIT_AUTHOR}
+          📅 *Дата:* ${COMMIT_DATE}
           
-          JSON_PAYLOAD="{\"chat_id\":\"5615087670\",\"text\":\"$(echo "$MESSAGE" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\",\"parse_mode\":\"HTML\"}"
+          💬 *Сообщение:*
+          \`\`\`
+          ${COMMIT_MESSAGE}
+          \`\`\`
           
-          echo "Sending payload:"
-          echo "$JSON_PAYLOAD" | jq .
+          📂 *Измененные файлы:*
+          \`\`\`
+          ${CHANGED_FILES%, }
+          \`\`\`
           
+          🔍 *Полные изменения:*
+          [Просмотреть на GitHub](${COMMIT_LINK})"
+
+          # Сохраняем для отправки
+          echo "MESSAGE<<EOF" >> $GITHUB_OUTPUT
+          echo "${MESSAGE}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "Сообщение сформировано:"
+          echo "${MESSAGE}"
+
+      - name: Send to Telegram Channel
+        run: |
           curl -X POST \
           -H "Content-Type: application/json" \
-          -d "$JSON_PAYLOAD" \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+          -d '{
+            "chat_id": "@your_channel_username",
+            "text": "${{ steps.prepare.outputs.MESSAGE }}",
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": false
+          }' \
+          "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
