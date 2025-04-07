@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Получаем полную историю коммитов
+          fetch-depth: 0
       
       - name: Get commit info
         id: commits
@@ -23,9 +23,9 @@ jobs:
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
-            "chat_id": "'"$5615087670"'",
+            "chat_id": "'"$TELEGRAM_CHAT_ID"'",
             "text": "📌 *Новые изменения в* [${GITHUB_REPOSITORY}](https://github.com/${GITHUB_REPOSITORY})\n\n*Коммиты:*\n```\n${{ steps.commits.outputs.COMMITS }}\n```\n\n*Автор:* ${GITHUB_ACTOR}\n*Версия:* ${{ steps.commits.outputs.VERSION }}",
             "parse_mode": "MarkdownV2",
             "disable_web_page_preview": true
           }' \
-          "https://api.telegram.org/bot${7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q}/sendMessage"
+          "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
