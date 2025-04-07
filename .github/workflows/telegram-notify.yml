@@ -23,7 +23,7 @@ jobs:
             echo "$1" | sed \
               -e 's/\\/\\\\/g' \
               -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' \
-              -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' \
+              -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\/\\/g' \
               -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' \
               -e 's/\=/\\=/g' -e 's/\!/\\!/g' -e 's/\./\\./g'
           }
@@ -33,7 +33,7 @@ jobs:
           ESCAPED_URL=$(escape "$COMMIT_URL")
 
           # Собираем финальный текст
-          TEXT="🚀 *Новый коммит в репозитории*📄 *Описание:*$ESCAPED_MSG\n\n🛠 *Изменения:*\`\`\`\$ESCAPED_DIFF\\`\`\`\🔗 [Посмотреть на GitHub]($ESCAPED_URL)"
+          TEXT="🚀 *Новый коммит в репозитории*📄 *Описание:*$ESCAPED_MSG🛠 *Изменения:*\\\\$ESCAPED_DIFF\\\\\🔗 [Посмотреть на GitHub]($ESCAPED_URL)"
 
           echo "TEXT<<EOF" >> $GITHUB_ENV
           echo "$TEXT" >> $GITHUB_ENV
