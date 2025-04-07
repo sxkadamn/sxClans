@@ -12,15 +12,20 @@ jobs:
       - name: Get commit info
         id: commits
         run: |
-          echo "COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD)" >> $GITHUB_OUTPUT
+          echo "COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD | sed 's/\"/\\"/g')" >> $GITHUB_OUTPUT
+          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo '0.0.1')" >> $GITHUB_OUTPUT
       
       - name: Send to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
-            "chat_id": "5615087670",
-            "text": "📌 Новые изменения в ${GITHUB_REPOSITORY}\n\nКоммиты:\n${{ steps.commits.outputs.COMMITS }}\n\nАвтор: ${GITHUB_ACTOR}",
-            "parse_mode": "Markdown"
+            "chat_id": "'"$5615087670"'",
+            "text": "📌 *Новые изменения в* [${GITHUB_REPOSITORY}](https://github.com/${GITHUB_REPOSITORY})\n\n*Коммиты:*\n```\n${{ steps.commits.outputs.COMMITS }}\n```\n\n*Автор:* ${GITHUB_ACTOR}\n*Версия:* ${{ steps.commits.outputs.VERSION }}",
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": true
           }' \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+          "https://api.telegram.org/bot${7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q}/sendMessage"
