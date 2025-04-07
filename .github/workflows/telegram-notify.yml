@@ -10,47 +10,60 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Get git diff
+        id: git_diff
+        run: |
+          DIFF=$(git diff HEAD^ HEAD)
+          echo "DIFF<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Analyze changes with AI
         id: ai_analysis
         uses: actions/github-script@v6
         env:
-          DIFF: $(git diff HEAD^ HEAD)
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DIFF: ${{ steps.git_diff.outputs.DIFF }}
         with:
           script: |
             const { DIFF, OPENAI_KEY } = process.env;
-            const prompt = `
-            Проанализируй git diff и объясни изменения простым языком для игроков:
-            ${DIFF}
+            const prompt = `Проанализируй этот git diff и кратко опиши изменения для игроков:\n\n${DIFF}\n\nФормат: "• [Тип]: [Файл] - [Описание]"`;
             
-            Сформулируй ответ в таком формате:
-            • [Тип изменения]: [Файл] - [Что изменилось]
-            • Пример: "• Исправление: player/movement.cs - Улучшена обработка столкновений с препятствиями"
-            `;
+            try {
+              const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${OPENAI_KEY}`
+                },
+                body: JSON.stringify({
+                  model: "gpt-3.5-turbo",
+                  messages: [{role: "user", content: prompt}],
+                  temperature: 0.7
+                })
+              });
 
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${OPENAI_KEY}`
-              },
-              body: JSON.stringify({
-                model: "gpt-3.5-turbo",
-                messages: [{role: "user", content: prompt}],
-                temperature: 0.7
-              })
-            });
+              const data = await response.json();
+              
+              if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+                core.setOutput('result', data.choices[0].message.content);
+              } else {
+                core.setFailed('Неверный формат ответа от OpenAI API');
+              }
+            } catch (error) {
+              core.setFailed(`Ошибка при запросе к OpenAI: ${error.message}`);
+            }
 
-            const data = await response.json();
-            return data.choices[0].message.content;
-
-      - name: Send AI analysis to Telegram
+      - name: Send notification
+        if: steps.ai_analysis.outputs.result
         run: |
+          MESSAGE="🧠 *AI-анализ изменений*:\n\n${{ steps.ai_analysis.outputs.result }}\n\n🔗 Подробности: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+          
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "🧠 *AI-анализ изменений*:\n\n${{ steps.ai_analysis.outputs.result }}\n\n🔗 Полные изменения: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA",
+            "text": "'"$MESSAGE"'",
             "parse_mode": "MarkdownV2",
             "disable_web_page_preview": true
           }' \
