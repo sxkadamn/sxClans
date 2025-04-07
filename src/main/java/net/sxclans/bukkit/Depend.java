@@ -114,9 +114,10 @@ public final class Depend extends JavaPlugin {
             server.createContext("/webhook", exchange -> {
                 if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                     InputStream requestBody = exchange.getRequestBody();
+                    String payload = new String(requestBody.readAllBytes(), StandardCharsets.UTF_8);
 
                     try {
-                        JSONObject jsonPayload = new JSONObject();
+                        JSONObject jsonPayload = new JSONObject(payload);
                         handleGitHubWebhook(jsonPayload);
                         exchange.sendResponseHeaders(200, "Webhook processed successfully!".getBytes().length);
                         exchange.getResponseBody().write("Webhook processed successfully!".getBytes());
@@ -132,7 +133,7 @@ public final class Depend extends JavaPlugin {
                 exchange.close();
             });
 
-            server.setExecutor(null);
+            server.setExecutor(null); // Используем дефолтный executor
             server.start();
             getLogger().info("HTTP Server started on port 8080");
         } catch (IOException e) {
@@ -176,17 +177,35 @@ public final class Depend extends JavaPlugin {
 
     private void handleGitHubWebhook(JSONObject payload) {
         try {
+            // Проверяем, есть ли поле "commits"
+            if (!payload.has("commits")) {
+                getLogger().warning("No 'commits' field found in the webhook payload.");
+                return;
+            }
+
             JSONArray commits = payload.getJSONArray("commits");
 
-            org.json.JSONObject lastCommit = commits.getJSONObject(0);
-            String commitMessage = lastCommit.getString("message");
-            String authorName = lastCommit.getJSONObject("author").getString("name");
+            // Проверяем, есть ли хотя бы один коммит
+            if (commits.length() == 0) {
+                getLogger().warning("No commits found in the webhook payload.");
+                return;
+            }
 
-            String devlogMessage = "New update pushed to GitHub!\n"
-                    + "Commit: " + commitMessage + "\n"
-                    + "Author: " + authorName;
+            // Формируем сообщение для Telegram
+            StringBuilder devlogMessage = new StringBuilder("New update pushed to GitHub!\n\n");
 
-            sendDevlogToTelegram(devlogMessage);
+            for (int i = 0; i < commits.length(); i++) {
+                JSONObject commit = commits.getJSONObject(i);
+                String commitMessage = commit.getString("message");
+                String authorName = commit.getJSONObject("author").getString("name");
+
+                devlogMessage.append("Commit ").append(i + 1).append(":\n")
+                        .append("Message: ").append(commitMessage).append("\n")
+                        .append("Author: ").append(authorName).append("\n\n");
+            }
+
+            // Отправляем сообщение в Telegram
+            sendDevlogToTelegram(devlogMessage.toString());
         } catch (Exception e) {
             getLogger().severe("Error parsing GitHub webhook payload: " + e.getMessage());
         }
