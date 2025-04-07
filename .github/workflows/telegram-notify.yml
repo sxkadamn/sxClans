@@ -7,32 +7,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare message
-        id: prepare
+      - name: Prepare and send message
         run: |
+          # Получаем информацию о коммите
           COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
           
-          MESSAGE_JSON=$(jq -n \
-            --arg repo "$GITHUB_REPOSITORY" \
-            --arg commit "$COMMIT_MSG" \
-            --arg actor "$GITHUB_ACTOR" \
-            --arg sha "$GITHUB_SHA" \
-            '{
-              "chat_id": "5615087670",
-              "text": ("📌 New push to " + $repo + 
-                      "\nCommit: " + $commit + 
-                      "\nAuthor: " + $actor + 
-                      "\nLink: https://github.com/" + $repo + "/commit/" + $sha),
-              "parse_mode": "HTML"
-            }')
+          # Формируем текст сообщения
+          MESSAGE="📌 New push to $GITHUB_REPOSITORY
+          Commit: $COMMIT_MSG
+          Author: $GITHUB_ACTOR
+          Link: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
           
-          echo "MESSAGE_JSON=${MESSAGE_JSON}" >> $GITHUB_OUTPUT
-          echo "Generated message:"
-          echo "$MESSAGE_JSON" | jq -r '.text'
-
-      - name: Send to Telegram
-        run: |
-          curl -v -X POST \
+          # Формируем JSON в одну строку
+          JSON_PAYLOAD="{\"chat_id\":\"5615087670\",\"text\":\"$(echo "$MESSAGE" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\",\"parse_mode\":\"HTML\"}"
+          
+          echo "Sending payload:"
+          echo "$JSON_PAYLOAD" | jq .
+          
+          # Отправляем в Telegram
+          curl -X POST \
           -H "Content-Type: application/json" \
-          -d '${{ steps.prepare.outputs.MESSAGE_JSON }}' \
+          -d "$JSON_PAYLOAD" \
           "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
