@@ -13,13 +13,11 @@ jobs:
       - name: Prepare notification data
         id: prepare
         run: |
-          # Получаем основные данные
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           AUTHOR=$(git log -1 --pretty=format:'%an')
           DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
           COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
 
-          # Формируем список изменений
           CHANGES=$(git diff --name-status HEAD^ HEAD | while read status file; do
             case $status in
               A) echo "• 🆕 $file";;
@@ -30,10 +28,8 @@ jobs:
               *) echo "• 🔄 $file";;
             done | tr '\n' '\t')
 
-          # Получаем статистику изменений
           DETAILS=$(git diff --stat HEAD^ HEAD)
 
-          # Формируем текст сообщения
           MESSAGE="📌 *Обновление в проекте*: ${GITHUB_REPOSITORY##*/}
           
           📝 *Коммит*: $COMMIT_MSG
@@ -50,16 +46,13 @@ jobs:
           
           🔗 *Ссылка*: $COMMIT_LINK"
 
-          # Сохраняем в файл
           echo "$MESSAGE" > message.txt
           echo "MESSAGE=$(jq -Rs < message.txt)" >> $GITHUB_OUTPUT
 
       - name: Send to Telegram
         run: |
-          # Читаем сообщение из файла
           MESSAGE=$(cat message.txt)
           
-          # Формируем JSON вручную
           JSON_DATA='{
             "chat_id": "5615087670",
             "text": $MESSAGE,
@@ -67,7 +60,6 @@ jobs:
             "disable_web_page_preview": true
           }'
           
-          # Отправляем с правильным экранированием
           curl -X POST \
             -H "Content-Type: application/json" \
             -d "$JSON_DATA" \
