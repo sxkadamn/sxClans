@@ -8,19 +8,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Получаем текущий и предыдущий коммиты
+          fetch-depth: 2 
 
       - name: Get changes details
         id: changes
         run: |
-          # Получаем разницу между коммитами
           DIFF_CONTENT=$(git diff HEAD^ HEAD --stat)
           CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
           COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
           COMMIT_DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
 
-          # Формируем подробное описание изменений
           echo "DIFF_CONTENT<<EOF" >> $GITHUB_OUTPUT
           echo "$DIFF_CONTENT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -35,7 +33,6 @@ jobs:
 
       - name: Compose detailed message
         run: |
-          # Формируем читабельное сообщение
           MESSAGE="🔄 *Обновление в проекте*: ${GITHUB_REPOSITORY##*/}
           
           📝 *Коммит*: ${{ steps.changes.outputs.COMMIT_MSG }}
