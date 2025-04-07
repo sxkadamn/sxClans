@@ -1,86 +1,20 @@
-name: AI Git Analyzer
-on: [push]
+- name: Send to Telegram
+  env:
+    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  run: |
+    ESCAPED_TEXT=$(sed -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' -e 's/(/\\(/g' -e 's/)/\\)/g' <<< "${{ steps.ai_analysis.outputs.result }}")
 
-jobs:
-  notify:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
+    JSON_PAYLOAD=$(jq -n \
+      --arg chat_id "5615087670" \
+      --arg text "🤖 *AI Анализ изменений*:\n\n$ESCAPED_TEXT\n\n🔗 *Коммит*: https://github.com/${{ github.repository }}/commit/${{ github.sha }}" \
+      '{
+        chat_id: $chat_id,
+        text: $text,
+        parse_mode: "MarkdownV2",
+        disable_web_page_preview: true
+      }')
 
-      - name: Get git diff
-        id: git_diff
-        run: |
-          git diff HEAD^ HEAD > diff.txt
-          echo "DIFF_CONTENT=$(jq -Rs < diff.txt)" >> $GITHUB_OUTPUT
-          echo "DIFF_LINES=$(wc -l < diff.txt)" >> $GITHUB_OUTPUT
-
-      - name: Analyze with AI
-        id: ai_analysis
-        uses: actions/github-script@v6
-        env:
-          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
-          DIFF: ${{ steps.git_diff.outputs.DIFF_CONTENT }}
-        with:
-          script: |
-            const {OPENAI_KEY, DIFF} = process.env;
-            try {
-              const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${OPENAI_KEY}`
-                },
-                body: JSON.stringify({
-                  model: "gpt-3.5-turbo",
-                  messages: [{
-                    role: "user",
-                    content: `Проанализируй изменения в коде:\n${DIFF}\n\nКраткий вывод:`
-                  }],
-                  temperature: 0.7,
-                  max_tokens: 500
-                })
-              });
-
-              const data = await response.json();
-              if (!data.choices?.[0]?.message?.content) {
-                throw new Error('Invalid response from OpenAI');
-              }
-              return data.choices[0].message.content;
-            } catch (error) {
-              return `❌ Ошибка анализа: ${error.message}`;
-            }
-
-      - name: Prepare Telegram message
-        run: |
-          # Формируем сообщение в файле
-          cat <<EOF > message.txt
-          🤖 *AI Анализ изменений*:
-
-          ${{ steps.ai_analysis.outputs.result }}
-
-          🔗 *Коммит*: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA
-          EOF
-          
-          # Сохраняем в переменную
-          echo "MESSAGE=$(cat message.txt | jq -Rs)" >> $GITHUB_ENV
-
-      - name: Send to Telegram
-        run: |
-          # Используем jq для корректного экранирования
-          JSON_PAYLOAD=$(jq -n \
-            --arg chat_id "5615087670" \
-            --arg text "$(cat message.txt)" \
-            '{
-              chat_id: $chat_id,
-              text: $text,
-              parse_mode: "MarkdownV2",
-              disable_web_page_preview: true
-            }')
-          
-          curl -v -X POST \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
-            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+    curl -X POST \
+      -H "Content-Type: application/json" \
+      -d "$JSON_PAYLOAD" \
+      "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
