@@ -193,4 +193,9 @@ public class Clan implements Serializable {
         this.memberLimit = limit;
         save();
     }
+
+    public String getStrippedName() {
+        return name.replaceAll("(?i)[§&][0-9A-FK-ORX]", "");
+    }
 }
+

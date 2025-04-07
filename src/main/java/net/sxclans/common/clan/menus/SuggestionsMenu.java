@@ -53,14 +53,16 @@ public class SuggestionsMenu {
                 .onClick((slot, stateSnapshot) -> {
                     if (slot != AnvilGUI.Slot.OUTPUT) return Collections.emptyList();
 
-                    String clanName = stateSnapshot.getText().trim();
+                    String inputName = stateSnapshot.getText().trim();
+                    String rawName = inputName.replaceAll("(?i)&[0-9A-FK-ORX]", "");
+                    String formattedName = Plugin.getWithColor().hexToMinecraftColor(inputName);
 
                     return Stream.of(
-                                    Map.entry(clanName.isEmpty(), config.errorEmptyName()),
+                                    Map.entry(inputName.isEmpty(), config.errorEmptyName()),
                                     Map.entry(!economyAvailable, config.errorEconomyUnavailable()),
                                     Map.entry(playerBalance < config.cost(), config.errorInsufficientFunds()),
-                                    Map.entry(clanName.length() > config.maxLength(), config.errorNameTooLong()),
-                                    Map.entry(!clanName.matches("[a-zA-Z0-9_]+"), config.errorInvalidChars())
+                                    Map.entry(rawName.length() > config.maxLength(), config.errorNameTooLong()),
+                                    Map.entry(!rawName.matches("[a-zA-Z0-9_&]+"), config.errorInvalidChars())
                             )
                             .filter(Map.Entry::getKey)
                             .map(Map.Entry::getValue)
@@ -69,22 +71,25 @@ public class SuggestionsMenu {
                                     Plugin.getWithColor().hexToMinecraftColor(error)))
                             .findFirst()
                             .map(Collections::singletonList)
-                            .orElseGet(() -> Optional.ofNullable(Depend.getClanManage().getClan(clanName))
-                                    .map(existingClan -> {
-                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.errorClanExists()));
-                                        return List.of(AnvilGUI.ResponseAction.close());
-                                    })
-                                    .orElseGet(() -> {
-                                        Clan newClan = new Clan(clanName, player.getName());
-                                        newClan.addMember(player.getName());
-                                        economy.withdraw(player, config.cost());
-                                        newClan.save();
-                                        Depend.getClanManage().saveClan(newClan);
-                                        Utility.playConfiguredSounds(player, "sounds.clan_created");
-                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                config.successMessage().replace("{clan_name}", clanName)));
-                                        return List.of(AnvilGUI.ResponseAction.close());
-                                    }));
+                            .orElseGet(() -> {
+                                String formattedClanName = Plugin.getWithColor().hexToMinecraftColor(rawName);
+
+                                if (Depend.getClanManage().getClans().values().stream()
+                                        .anyMatch(clan -> clan.getStrippedName().equalsIgnoreCase(formattedClanName))) {
+                                    player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.errorClanExists()));
+                                    return List.of(AnvilGUI.ResponseAction.close());
+                                }
+
+                                Clan newClan = new Clan(formattedName, player.getName());
+                                newClan.addMember(player.getName());
+                                economy.withdraw(player, config.cost());
+                                newClan.save();
+                                Depend.getClanManage().saveClan(newClan);
+                                Utility.playConfiguredSounds(player, "sounds.clan_created");
+                                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                        config.successMessage().replace("{clan_name}", formattedName)));
+                                return List.of(AnvilGUI.ResponseAction.close());
+                            });
                 })
                 .open(player);
     }

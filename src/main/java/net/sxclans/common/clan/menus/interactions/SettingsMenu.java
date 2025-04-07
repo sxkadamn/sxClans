@@ -3,161 +3,198 @@ package net.sxclans.common.clan.menus.interactions;
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
 import net.lielibrary.gui.buttons.Button;
+import net.lielibrary.gui.buttons.ButtonListener;
 import net.sxclans.bukkit.files.FilesManagerInterface;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.integration.VaultEconomyProvider;
 import net.sxclans.common.clan.models.ClanRank;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
-import java.util.Arrays;
-import java.util.List;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class SettingsMenu {
-
     private final Player player;
     private final Clan clan;
     private final FilesManagerInterface filesManager;
-    private AnimatedMenu menu;
+    private final AnimatedMenu menu;
+    private final SettingsConfig config;
 
     public SettingsMenu(Player player, Clan clan, FilesManagerInterface filesManager) {
         this.player = player;
         this.clan = clan;
         this.filesManager = filesManager;
 
-        FileConfiguration config = filesManager.getMenuConfig("clan_settings");
-        String title = Plugin.getWithColor().hexToMinecraftColor(config.getString("title", "&6Настройки клана"));
-        int size = config.getInt("size");
+        FileConfiguration fileConfig = filesManager.getMenuConfig("clan_settings");
+        this.config = new SettingsConfig(
+                fileConfig.getString("title"),
+                fileConfig.getInt("size"),
+                fileConfig.getString("messages.no_permission"),
+                fileConfig.getInt("settings.member_limit_increase_step"),
+                fileConfig.getDouble("settings.member_limit_increase_cost"),
+                fileConfig.getInt("settings.max_member_limit"),
+                fileConfig.getString("messages.max_limit_reached"),
+                fileConfig.getString("messages.pvp_enabled"),
+                fileConfig.getString("messages.pvp_disabled"),
+                fileConfig.getString("messages.base_set"),
+                fileConfig.getString("messages.insufficient_funds"),
+                fileConfig.getString("messages.limit_increased"),
+                Stream.of("pvp_toggle", "set_base", "increase_limit")
+                        .collect(Collectors.toMap(
+                                key -> key,
+                                key -> new ButtonConfig(
+                                        key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.material") : null,
+                                        key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.material") : null,
+                                        key.equals("pvp_toggle") ? fileConfig.getInt("buttons." + key + ".enabled.slot") : fileConfig.getInt("buttons." + key + ".slot"),
+                                        key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.display") : null,
+                                        key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.display") : null,
+                                        key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.lore") : null,
+                                        key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.lore") : null,
+                                        fileConfig.getString("messages." + (key.equals("pvp_toggle") ? "pvp_enabled" :
+                                                key.equals("set_base") ? "base_set" : "limit_increased")),
+                                        key.equals("increase_limit") ? fileConfig.getString("messages.insufficient_funds") : null,
+                                        key.equals("pvp_toggle") ? null : fileConfig.getString("buttons." + key + ".material"),
+                                        null,
+                                        key.equals("pvp_toggle") ? null : fileConfig.getString("buttons." + key + ".display"),
+                                        fileConfig.getStringList("buttons." + key + ".lore")
+                                )))
+        );
+        this.menu = Optional.ofNullable(config)
+                .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
+                        Plugin.getWithColor().hexToMinecraftColor(cfg.title()),
+                        cfg.size(),
+                        player))
+                .orElse(null);
 
         if (!clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("messages.no_permission", "&cУ вас нет прав для управления настройками клана!")));
-            return;
+            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.noPermission()));
         }
-
-        this.menu = Plugin.getMenuManager().createMenuFromConfig(title, size, player);
     }
 
     public void open() {
-        if (menu == null) return;
-
-        FileConfiguration config = filesManager.getMenuConfig("clan_settings");
+        if (menu == null || config == null) return;
 
         boolean pvpEnabled = clan.isPvpEnabled();
         int currentLimit = clan.getMemberLimit();
-        int memberLimitIncreaseStep = config.getInt("settings.member_limit_increase_step", 5);
-        int newLimit = currentLimit + memberLimitIncreaseStep;
-        double cost = config.getDouble("settings.member_limit_increase_cost", 1000.0);
-        int maxLimit = config.getInt("settings.max_member_limit", 50);
+        int newLimit = currentLimit + config.memberLimitIncreaseStep();
+        double cost = config.memberLimitIncreaseCost();
+        int maxLimit = config.maxMemberLimit();
 
         if (newLimit > maxLimit) {
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("messages.max_limit_reached", "&cДостигнут максимальный лимит участников!")));
+            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.maxLimitReached()));
             return;
         }
 
-        // Кнопка переключения PvP
-        Material pvpEnabledMaterial = Material.DIAMOND_SWORD;
-        try {
-            pvpEnabledMaterial = Material.valueOf(config.getString("buttons.pvp_toggle.enabled.material", "DIAMOND_SWORD").toUpperCase());
-        } catch (IllegalArgumentException ignored) {}
+        Stream.of("pvp_toggle", "set_base", "increase_limit")
+                .forEach(type -> {
+                    ButtonConfig btnConfig = config.buttons().get(type);
+                    Material material = type.equals("pvp_toggle")
+                            ? Material.valueOf(pvpEnabled ? btnConfig.disabledMaterial() : btnConfig.enabledMaterial())
+                            : Material.valueOf(btnConfig.material());
+                    String display = Plugin.getWithColor().hexToMinecraftColor(type.equals("pvp_toggle")
+                            ? (pvpEnabled ? btnConfig.disabledDisplay() : btnConfig.enabledDisplay())
+                            : btnConfig.display());
+                    List<String> lore = type.equals("pvp_toggle")
+                            ? List.of(Plugin.getWithColor().hexToMinecraftColor(pvpEnabled ? btnConfig.disabledLore() : btnConfig.enabledLore()))
+                            : btnConfig.lore().stream()
+                            .map(line -> Plugin.getWithColor().hexToMinecraftColor(
+                                    line.replace("%current_limit%", String.valueOf(currentLimit))
+                                            .replace("%new_limit%", String.valueOf(newLimit))
+                                            .replace("%cost%", String.valueOf(cost))))
+                            .collect(Collectors.toList());
 
-        Material pvpDisabledMaterial = Material.IRON_SWORD;
-        try {
-            pvpDisabledMaterial = Material.valueOf(config.getString("buttons.pvp_toggle.disabled.material", "IRON_SWORD").toUpperCase());
-        } catch (IllegalArgumentException ignored) {}
+                    Button button = new Button(material)
+                            .setDisplay(display)
+                            .setLoreList(lore)
+                            .withListener((ButtonListener) event -> {
+                                if (type.equals("pvp_toggle")) {
+                                    clan.setPvpEnabled(!pvpEnabled);
+                                    clan.save();
+                                    player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(pvpEnabled ? config.pvpDisabledMessage() : config.pvpEnabledMessage()));
+                                } else if (type.equals("set_base")) {
+                                    var location = player.getLocation();
+                                    clan.setBaseLocation(location);
+                                    clan.save();
+                                    player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                            config.baseSetMessage()
+                                                    .replace("%x%", String.valueOf(location.getBlockX()))
+                                                    .replace("%y%", String.valueOf(location.getBlockY()))
+                                                    .replace("%z%", String.valueOf(location.getBlockZ()))));
+                                } else if (type.equals("increase_limit")) {
+                                    VaultEconomyProvider economy = new VaultEconomyProvider();
+                                    if (!economy.isAvailable() || economy.getBalance(player) < cost) {
+                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.insufficientFundsMessage()));
+                                        return;
+                                    }
+                                    economy.withdraw(player, cost);
+                                    clan.setMemberLimit(newLimit);
+                                    clan.save();
+                                    player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                            config.limitIncreasedMessage().replace("%new_limit%", String.valueOf(newLimit))));
+                                }
+                                player.closeInventory();
+                                new SettingsMenu(player, clan, filesManager).open();
+                            });
 
-        Button pvpButton = new Button(pvpEnabled ? pvpDisabledMaterial : pvpEnabledMaterial);
-        pvpButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(
-                pvpEnabled
-                        ? config.getString("buttons.pvp_toggle.disabled.display", "&cPvP: Выключено")
-                        : config.getString("buttons.pvp_toggle.enabled.display", "&aPvP: Включено")
-        ));
-        pvpButton.setLore(Plugin.getWithColor().hexToMinecraftColor(
-                pvpEnabled
-                        ? config.getString("buttons.pvp_toggle.disabled.lore", "&7Нажмите, чтобы включить PvP")
-                        : config.getString("buttons.pvp_toggle.enabled.lore", "&7Нажмите, чтобы выключить PvP")
-        ));
-        pvpButton.withListener(event -> {
-            clan.setPvpEnabled(!pvpEnabled);
-            clan.save();
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                    pvpEnabled
-                            ? config.getString("messages.pvp_disabled", "&cPvP выключено!")
-                            : config.getString("messages.pvp_enabled", "&aPvP включено!")
-            ));
-            player.closeInventory();
-            new SettingsMenu(player, clan, filesManager).open();
-        });
-        menu.setSlot(config.getInt("buttons.pvp_toggle.enabled.slot", 10), pvpButton);
-
-        // Кнопка установки базы
-        Material setBaseMaterial = Material.ENDER_PEARL;
-        try {
-            setBaseMaterial = Material.valueOf(config.getString("buttons.set_base.material", "ENDER_PEARL").toUpperCase());
-        } catch (IllegalArgumentException ignored) {}
-
-        Button setBaseButton = new Button(setBaseMaterial);
-        setBaseButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("buttons.set_base.display", "&bУстановить базу")));
-        setBaseButton.setLore(Plugin.getWithColor().hexToMinecraftColor(config.getString("buttons.set_base.lore", "&7Установите точку базы клана на вашей текущей позиции")));
-        setBaseButton.withListener(event -> {
-            Location location = player.getLocation();
-            clan.setBaseLocation(location);
-            clan.save();
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                    config.getString("messages.base_set", "&aБаза установлена на координаты: %x%, %y%, %z%!")
-                            .replace("%x%", String.valueOf(location.getBlockX()))
-                            .replace("%y%", String.valueOf(location.getBlockY()))
-                            .replace("%z%", String.valueOf(location.getBlockZ()))
-            ));
-            player.closeInventory();
-        });
-        menu.setSlot(config.getInt("buttons.set_base.slot", 12), setBaseButton);
-
-        Material increaseLimitMaterial = Material.EMERALD;
-        try {
-            increaseLimitMaterial = Material.valueOf(config.getString("buttons.increase_limit.material", "EMERALD").toUpperCase());
-        } catch (IllegalArgumentException ignored) {}
-
-        List<String> increaseLimitLore = config.getStringList("buttons.increase_limit.lore");
-        if (increaseLimitLore.isEmpty()) {
-            increaseLimitLore = Arrays.asList(
-                    "&7Текущий лимит: %current_limit%",
-                    "&7Новый лимит: %new_limit%",
-                    "&7Стоимость: %cost%"
-            );
-        }
-        increaseLimitLore = increaseLimitLore.stream()
-                .map(line -> Plugin.getWithColor().hexToMinecraftColor(
-                        line.replace("%current_limit%", String.valueOf(currentLimit))
-                                .replace("%cost%", String.valueOf(cost))
-                                .replace("%new_limit%", String.valueOf(newLimit))
-                ))
-                .toList();
-
-        Button increaseLimitButton = new Button(increaseLimitMaterial);
-        increaseLimitButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("buttons.increase_limit.display", "&eУвеличить лимит участников")));
-        increaseLimitButton.setLoreList(increaseLimitLore);
-        increaseLimitButton.withListener(event -> {
-            VaultEconomyProvider economy = new VaultEconomyProvider();
-            if (!economy.isAvailable() || economy.getBalance(player) < cost) {
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("messages.insufficient_funds", "&cНедостаточно средств для увеличения лимита!")));
-                return;
-            }
-
-            economy.withdraw(player, cost);
-            clan.setMemberLimit(newLimit);
-            clan.save();
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                    config.getString("messages.limit_increased", "&aЛимит участников увеличен до %new_limit%!")
-                            .replace("%new_limit%", String.valueOf(newLimit))
-            ));
-            player.closeInventory();
-            new SettingsMenu(player, clan, filesManager).open();
-        });
-        menu.setSlot(config.getInt("buttons.increase_limit.slot", 14), increaseLimitButton);
+                    menu.setSlot(btnConfig.slot(), button);
+                });
 
         menu.open(player);
+    }
+
+    private record SettingsConfig(
+            String title,
+            int size,
+            String noPermission,
+            int memberLimitIncreaseStep,
+            double memberLimitIncreaseCost,
+            int maxMemberLimit,
+            String maxLimitReached,
+            String pvpEnabledMessage,
+            String pvpDisabledMessage,
+            String baseSetMessage,
+            String insufficientFundsMessage,
+            String limitIncreasedMessage,
+            Map<String, ButtonConfig> buttons
+    ) {
+        public SettingsConfig {
+            if (title == null || noPermission == null || maxLimitReached == null || pvpEnabledMessage == null ||
+                    pvpDisabledMessage == null || baseSetMessage == null || insufficientFundsMessage == null ||
+                    limitIncreasedMessage == null) {
+                throw new IllegalArgumentException("Required configuration values are missing in clan_settings.yml");
+            }
+        }
+    }
+
+    private record ButtonConfig(
+            String enabledMaterial,
+            String disabledMaterial,
+            int slot,
+            String enabledDisplay,
+            String disabledDisplay,
+            String enabledLore,
+            String disabledLore,
+            String successMessage,
+            String errorMessage,
+            String material,
+            Integer slotOverride,
+            String display,
+            List<String> lore
+    ) {
+        public ButtonConfig {
+            if (slot == 0 && (slotOverride == null || slotOverride == 0)) {
+                throw new IllegalArgumentException("Slot is required for button configuration");
+            }
+        }
+
+        public int slot() {
+            return slotOverride != null ? slotOverride : slot;
+        }
     }
 }

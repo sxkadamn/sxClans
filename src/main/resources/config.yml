@@ -1,3 +1,18 @@
+storage:
+  type: sqlite #postgresql, mysql
+  mysql:
+    host: localhost
+    port: 3306
+    database: sxclans
+    username: root
+    password: ""
+  postgresql:
+    host: localhost
+    port: 5432
+    database: sxclans
+    username: postgres
+    password: ""
+
 default_member_limit: 10
 clan_ranks:
   leader: "👑 Владелец"
@@ -41,7 +56,7 @@ holograms:
       z: 200.5
     update_interval_seconds: 300
     header:
-      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ &6&l◈"
+      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ (МОНЕТЫ) &6&l◈"
       - "&7&m---------------------"
     lines:
       - "&e1. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
@@ -49,6 +64,26 @@ holograms:
       - "&e3. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
       - "&74. &f{name} &8- &a{bank}$ &7(Лидер: {leader})"
       - "&e5. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
+    footer:
+      - "&7&m---------------------"
+      - "&6Обновлено: &e{time}"
+  rubles_top:
+    enabled: true
+    location:
+      world: world
+      x: 100.5
+      y: 64.0
+      z: 200.5
+    update_interval_seconds: 300
+    header:
+      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ (РУБЛИ) &6&l◈"
+      - "&7&m---------------------"
+    lines:
+      - "&e1. &6{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&72. &f{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&e3. &6{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&74. &f{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&e5. &6{name} &8- &a{rubles}$ &7(Лидер: {leader})"
     footer:
       - "&7&m---------------------"
       - "&6Обновлено: &e{time}"
