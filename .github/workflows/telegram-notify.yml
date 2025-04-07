@@ -10,29 +10,29 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Prepare simple message
-        id: prepare
+      - name: Prepare message
         run: |
-          # Получаем базовую информацию
+          # Получаем данные
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
-          CHANGES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g')
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g')
           
-          # Формируем простое текстовое сообщение (без Markdown)
-          echo "MESSAGE=Новые изменения в ${GITHUB_REPOSITORY##*/}
-          Коммит: ${COMMIT_MSG}
-          Автор: ${GITHUB_ACTOR}
-          Измененные файлы: ${CHANGES%, }
-          Ссылка: https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}" >> $GITHUB_ENV
+          # Формируем сообщение в одну строку
+          MESSAGE="Новые изменения в ${GITHUB_REPOSITORY##*/} | Коммит: ${COMMIT_MSG} | Автор: ${GITHUB_ACTOR} | Файлы: ${CHANGED_FILES%,} | Ссылка: https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
           
-          echo "Сообщение:"
-          echo "$MESSAGE"
+          # Сохраняем в файл
+          echo "$MESSAGE" > message.txt
+          echo "MESSAGE=$(cat message.txt)" >> $GITHUB_ENV
 
-      - name: Send to Telegram (simple text)
+      - name: Send to Telegram
         run: |
-          curl -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "5615087670",
-            "text": "'"$MESSAGE"'"
-          }'
+          # Читаем сообщение из файла
+          MESSAGE_CONTENT=$(cat message.txt)
+          
+          # Формируем простейший JSON
+          JSON_DATA="{\"chat_id\":\"5615087670\",\"text\":\"$MESSAGE_CONTENT\"}"
+          
+          # Отправляем
+          curl -v -X POST \
+            -H "Content-Type: application/json" \
+            -d "$JSON_DATA" \
+            "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
