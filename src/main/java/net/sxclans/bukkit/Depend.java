@@ -13,18 +13,8 @@ import net.sxclans.common.clan.base.MySQLClanManager;
 import net.sxclans.common.clan.base.PostgreSQLClanManager;
 import net.sxclans.common.clan.models.ClanRank;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
