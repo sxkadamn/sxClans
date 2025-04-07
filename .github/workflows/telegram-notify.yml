@@ -5,30 +5,37 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Prepare message
-        id: prepare
+      - name: Verify Telegram connection
         run: |
-          # Получаем информацию о коммитах
-          COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD | sed 's/"/\\"/g')
-          
-          # Формируем JSON-сообщение
-          MESSAGE=$(printf '{
-            "chat_id": "5615087670",
-            "text": "📌 Новые изменения в %s\n\nКоммиты:\n%s\n\nАвтор: %s\nВерсия: dev",
-            "parse_mode": "Markdown"
-          }' "$GITHUB_REPOSITORY" "$COMMITS" "$GITHUB_ACTOR")
-          
-          echo "MESSAGE=${MESSAGE}" >> $GITHUB_OUTPUT
-          echo "Generated message:"
-          echo "$MESSAGE"
+          echo "Проверяем доступность Telegram API..."
+          curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe" | jq
+          echo ""
 
-      - name: Send to Telegram
+      - name: Send simplest possible message
         run: |
           curl -v -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
           -H "Content-Type: application/json" \
-          -d '${{ steps.prepare.outputs.MESSAGE }}' \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+          -d '{
+            "chat_id": "5615087670",
+            "text": "Тестовое сообщение из GitHub Actions"
+          }'
+
+      - name: Show environment variables
+        run: |
+          echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "GITHUB_ACTOR=$GITHUB_ACTOR"
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+
+      - name: Send final message
+        run: |
+          COMMITS=$(git log --pretty=format:'%h - %an: %s' -n 1)
+          curl -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "chat_id": "5615087670",
+            "text": "📌 Репозиторий: '"$GITHUB_REPOSITORY"'\n\nПоследний коммит:\n'"$COMMITS"'\n\nАвтор: '"$GITHUB_ACTOR"'",
+            "parse_mode": "HTML"
+          }'
