@@ -15,24 +15,37 @@ jobs:
       - name: Get commit info
         id: commit_info
         run: |
-          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
-          GIT_DIFF=$(git diff HEAD^ HEAD --stat)
+          echo "COMMIT_MESSAGE<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-          echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> $GITHUB_ENV
-          echo "COMMIT_URL=$COMMIT_URL" >> $GITHUB_ENV
-          echo "GIT_DIFF=$GIT_DIFF" >> $GITHUB_ENV
+          echo "COMMIT_URL=https://github.com/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
+
+          echo "GIT_DIFF<<EOF" >> $GITHUB_OUTPUT
+          git diff HEAD^ HEAD --stat >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Send to Telegram
         run: |
           TELEGRAM_BOT_TOKEN="7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
           CHAT_ID="5615087670"
 
-          # Экранируем Markdown символы
-          ESCAPED_COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' -e 's/=/\\=/g' -e 's/!/\\!/g' -e 's/\./\\./g')
-          ESCAPED_DIFF=$(echo "$GIT_DIFF" | sed -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' -e 's/=/\\=/g' -e 's/!/\\!/g' -e 's/\./\\./g')
+          COMMIT_MESSAGE="${{ steps.commit_info.outputs.COMMIT_MESSAGE }}"
+          COMMIT_URL="${{ steps.commit_info.outputs.COMMIT_URL }}"
+          GIT_DIFF="${{ steps.commit_info.outputs.GIT_DIFF }}"
 
-          MESSAGE="🚀 *Новый коммит в репозитории:*\n\n📄 *Описание:* $ESCAPED_COMMIT_MESSAGE\n\n🛠 *Изменения:*\n\`\`\`\n$ESCAPED_DIFF\n\`\`\`\n🔗 [Посмотреть на GitHub]($COMMIT_URL)"
+          escape_markdown() {
+            echo "$1" | sed \
+              -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' \
+              -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' \
+              -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' \
+              -e 's/=/\\=/g' -e 's/!/\\!/g' -e 's/\./\\./g'
+          }
+
+          ESCAPED_COMMIT_MESSAGE=$(escape_markdown "$COMMIT_MESSAGE")
+          ESCAPED_DIFF=$(escape_markdown "$GIT_DIFF")
+
+          MESSAGE="🚀 *Новый коммит в репозитории:*\n\n📄 *Описание:* ${ESCAPED_COMMIT_MESSAGE}\n\n🛠 *Изменения:*\n\`\`\`\n${ESCAPED_DIFF}\n\`\`\`\n🔗 [Посмотреть на GitHub](${COMMIT_URL})"
 
           JSON_PAYLOAD=$(jq -n \
             --arg chat_id "$CHAT_ID" \
