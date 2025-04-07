@@ -13,11 +13,13 @@ jobs:
       - name: Prepare notification data
         id: prepare
         run: |
+          # Получаем основные данные
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           AUTHOR=$(git log -1 --pretty=format:'%an')
           DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
           COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
 
+          # Формируем список изменений
           CHANGES=$(git diff --name-status HEAD^ HEAD | while read status file; do
             case $status in
               A) echo "• 🆕 $file";;
@@ -26,41 +28,46 @@ jobs:
               R*) echo "• ♻️ ${file#*$'\t'}";;
               C) echo "• ©️ $file";;
               *) echo "• 🔄 $file";;
-            done | tr '\n' '\t')
+            done | tr '\n' '|')
 
+          # Получаем статистику изменений
           DETAILS=$(git diff --stat HEAD^ HEAD)
 
-          MESSAGE="📌 *Обновление в проекте*: ${GITHUB_REPOSITORY##*/}
-          
-          📝 *Коммит*: $COMMIT_MSG
-          👤 *Автор*: $AUTHOR
-          📅 *Дата*: $DATE
-          
-          📂 *Изменения*:
-          ${CHANGES//$'\t'/$'\n'}
-          
-          📊 *Детали*:
-          \`\`\`
-          $DETAILS
-          \`\`\`
-          
-          🔗 *Ссылка*: $COMMIT_LINK"
+          # Формируем текст сообщения
+          MESSAGE=$(printf "📌 *Обновление в проекте*: %s\n\n📝 *Коммит*: %s\n👤 *Автор*: %s\n📅 *Дата*: %s\n\n📂 *Изменения*:\n%s\n\n📊 *Детали*:\n\`\`\`\n%s\n\`\`\`\n\n🔗 *Ссылка*: %s" \
+            "${GITHUB_REPOSITORY##*/}" \
+            "$COMMIT_MSG" \
+            "$AUTHOR" \
+            "$DATE" \
+            "${CHANGES//|/$'\n'}" \
+            "$DETAILS" \
+            "$COMMIT_LINK")
 
+          # Сохраняем в файл
           echo "$MESSAGE" > message.txt
-          echo "MESSAGE=$(jq -Rs < message.txt)" >> $GITHUB_OUTPUT
+          echo "MESSAGE=$(cat message.txt | jq -Rs)" >> $GITHUB_OUTPUT
+
+          echo "Сообщение сформировано:"
+          cat message.txt
 
       - name: Send to Telegram
         run: |
+          # Формируем JSON payload
           MESSAGE=$(cat message.txt)
-          
-          JSON_DATA='{
-            "chat_id": "5615087670",
-            "text": $MESSAGE,
-            "parse_mode": "MarkdownV2",
-            "disable_web_page_preview": true
-          }'
-          
-          curl -X POST \
+          JSON_PAYLOAD=$(jq -n \
+            --arg chat_id "5615087670" \
+            --arg text "$MESSAGE" \
+            '{
+              chat_id: $chat_id,
+              text: $text,
+              parse_mode: "MarkdownV2",
+              disable_web_page_preview: true
+            }')
+
+          echo "Отправляем payload:"
+          echo "$JSON_PAYLOAD" | jq .
+
+          curl -v -X POST \
             -H "Content-Type: application/json" \
-            -d "$JSON_DATA" \
+            -d "$JSON_PAYLOAD" \
             "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
