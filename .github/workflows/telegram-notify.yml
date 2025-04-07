@@ -1,4 +1,4 @@
-name: Telegram Notifier
+name: Detailed Telegram Notifier
 on: [push]
 
 jobs:
@@ -7,35 +7,63 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Получаем текущий и предыдущий коммиты
 
-      - name: Verify bot access
+      - name: Get changes details
+        id: changes
         run: |
-          echo "Проверяем доступность бота..."
-          curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe" | jq
-          echo ""
-
-      - name: Test simple message
-        run: |
-          curl -v -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d '{"chat_id": "5615087670", "text": "Тестовое сообщение из GitHub"}'
-
-      - name: Prepare notification
-        run: |
+          # Получаем разницу между коммитами
+          DIFF_CONTENT=$(git diff HEAD^ HEAD --stat)
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
           COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
-          echo "REPO=${GITHUB_REPOSITORY}" >> $GITHUB_ENV
-          echo "COMMIT=${COMMIT_MSG}" >> $GITHUB_ENV
-          echo "ACTOR=${GITHUB_ACTOR}" >> $GITHUB_ENV
-          echo "SHA=${GITHUB_SHA}" >> $GITHUB_ENV
+          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
+          COMMIT_DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
 
-      - name: Send formatted message
+          # Формируем подробное описание изменений
+          echo "DIFF_CONTENT<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "CHANGED_FILES<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "COMMIT_AUTHOR=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+          echo "COMMIT_DATE=$COMMIT_DATE" >> $GITHUB_OUTPUT
+
+      - name: Compose detailed message
         run: |
-          curl -v -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          # Формируем читабельное сообщение
+          MESSAGE="🔄 *Обновление в проекте*: ${GITHUB_REPOSITORY##*/}
+          
+          📝 *Коммит*: ${{ steps.changes.outputs.COMMIT_MSG }}
+          👤 *Автор*: ${{ steps.changes.outputs.COMMIT_AUTHOR }}
+          📅 *Дата*: ${{ steps.changes.outputs.COMMIT_DATE }}
+          
+          📂 *Измененные файлы*:
+          \`\`\`
+          ${{ steps.changes.outputs.CHANGED_FILES }}
+          \`\`\`
+          
+          📊 *Детали изменений*:
+          \`\`\`
+          ${{ steps.changes.outputs.DIFF_CONTENT }}
+          \`\`\`"
+
+          echo "MESSAGE<<EOF" >> $GITHUB_ENV
+          echo "$MESSAGE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Send to Telegram
+        run: |
+          curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "📌 Репозиторий: ${{ env.REPO }}\n\n🔹 Коммит: ${{ env.COMMIT }}\n👤 Автор: ${{ env.ACTOR }}\n🔗 Ссылка: https://github.com/${{ env.REPO }}/commit/${{ env.SHA }}",
-            "parse_mode": "HTML"
-          }'
+            "text": "${{ env.MESSAGE }}",
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": true
+          }' \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
