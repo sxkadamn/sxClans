@@ -13,7 +13,6 @@ jobs:
       - name: Prepare notification
         id: prepare
         run: |
-          # Получаем детали коммитов
           COMMIT_HASH=$(git log -1 --pretty=format:'%h')
           COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
           COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed 's/"/\\"/g')
@@ -21,7 +20,6 @@ jobs:
           COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
           CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ',' | sed 's/,/, /g')
 
-          # Формируем красивое сообщение для канала
           MESSAGE="🚀 *Новый код в проекте* \\[${GITHUB_REPOSITORY##*/}\\]
           
           📝 *Коммит:* [${COMMIT_HASH}](${COMMIT_LINK})
@@ -41,7 +39,6 @@ jobs:
           🔍 *Полные изменения:*
           [Просмотреть на GitHub](${COMMIT_LINK})"
 
-          # Сохраняем для отправки
           echo "MESSAGE<<EOF" >> $GITHUB_OUTPUT
           echo "${MESSAGE}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
