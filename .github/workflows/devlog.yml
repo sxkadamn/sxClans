@@ -1,34 +1,36 @@
-name: Devlog to Telegram
+name: Telegram Devlog Notifier
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  send-devlog:
+  notify:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Получаем полную историю коммитов
 
-      - name: Send to Telegram
-        env:
-          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          # Формируем сообщение
-          COMMITS=$(git log --pretty=format:"🔹 %h - %an: %s" HEAD^..HEAD)
-          REPO_URL=$(git remote get-url origin | sed 's/\.git$//')
-          MESSAGE="📌 *Новые изменения в sxClans*:\n$COMMITS\n\n🔗 [Открыть репозиторий]($REPO_URL)"
+    - name: Prepare message
+      id: prepare
+      run: |
+        # Получаем информацию о последних изменениях
+        COMMITS=$(git log --pretty=format:"• %h - %s (by %an)" -n 5)
+        REPO_URL=$(git remote get-url origin | sed 's/\.git$//')
+        
+        # Формируем Markdown-сообщение
+        MESSAGE="🔄 *Обновления в sxClans*:\n${COMMITS}\n\n🌐 [Репозиторий](${REPO_URL})"
+        
+        # Экранируем для JSON
+        ESCAPED_MSG=$(echo "$MESSAGE" | jq -Rs .)
+        echo "message=${ESCAPED_MSG}" >> $GITHUB_OUTPUT
 
-          # Отправляем в Telegram
-          curl -s -X POST \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"chat_id\":\"$CHAT_ID\",
-              \"text\":\"$MESSAGE\",
-              \"parse_mode\":\"MarkdownV2\",
-              \"disable_web_page_preview\":true
-            }" \
-            "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
+    - name: Send to Telegram
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        message: ${{ steps.prepare.outputs.message }}
+        parse_mode: markdown
