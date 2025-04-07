@@ -8,31 +8,58 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Get commit info
-        id: commits
+
+      - name: Setup debug info
+        id: debug
         run: |
-          echo "COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD | sed 's/[][_*`]/\\&/g')" >> $GITHUB_OUTPUT
-          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')" >> $GITHUB_OUTPUT
-      
-      - name: Send to Telegram
+          # Получаем информацию о коммитах
+          COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD)
+          echo "COMMITS=${COMMITS}" >> $GITHUB_OUTPUT
+          
+          # Получаем версию
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')
+          echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          
+          # Формируем простое текстовое сообщение
+          echo "RAW_MESSAGE=📌 Новые изменения в ${GITHUB_REPOSITORY}" >> $GITHUB_OUTPUT
+          echo "RAW_MESSAGE+=%0A%0AКоммиты:%0A${COMMITS}" >> $GITHUB_OUTPUT
+          echo "RAW_MESSAGE+=%0A%0AАвтор: ${GITHUB_ACTOR}" >> $GITHUB_OUTPUT
+          echo "RAW_MESSAGE+=%0AВерсия: ${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Show debug info
         run: |
-          MESSAGE=$(cat <<EOF
-          📌 Новые изменения в $GITHUB_REPOSITORY
+          echo "=== Debug Information ==="
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "COMMITS: ${{ steps.debug.outputs.COMMITS }}"
+          echo "VERSION: ${{ steps.debug.outputs.VERSION }}"
+          echo "RAW_MESSAGE: ${{ steps.debug.outputs.RAW_MESSAGE }}"
+          echo "========================="
 
-          Коммиты:
-          ${{ steps.commits.outputs.COMMITS }}
+      - name: Test Telegram API connection
+        run: |
+          echo "Sending test ping to Telegram..."
+          curl -s -X GET "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe"
 
-          Автор: $GITHUB_ACTOR
-          Версия: ${{ steps.commits.outputs.VERSION }}
-          EOF
-          )
-
-          curl -X POST \
+      - name: Send simple test message
+        run: |
+          curl -v -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "'"$MESSAGE"'",
-            "parse_mode": "Markdown"
-          }' \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+            "text": "Test message from GitHub Actions workflow",
+            "disable_notification": false
+          }'
+
+      - name: Send actual notification
+        run: |
+          curl -v -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "chat_id": "5615087670",
+            "text": "📌 Новые изменения в ${GITHUB_REPOSITORY}\n\nКоммиты:\n${{ steps.debug.outputs.COMMITS }}\n\nАвтор: ${GITHUB_ACTOR}\nВерсия: ${{ steps.debug.outputs.VERSION }}",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": true
+          }'
