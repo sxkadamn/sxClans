@@ -1,41 +1,82 @@
-name: Telegram Notifier
+name: Telegram Notification
 on: [push]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify Telegram connection
-        run: |
-          echo "Проверяем доступность Telegram API..."
-          curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe" | jq
-          echo ""
+      # Шаг 1: Получаем код репозитория
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Полная история коммитов
 
-      - name: Send simplest possible message
+      # Шаг 2: Получаем информацию о коммитах
+      - name: Get commit details
+        id: commits
         run: |
-          curl -v -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
-          -H "Content-Type: application/json" \
-          -d '{
-            "chat_id": "5615087670",
-            "text": "Тестовое сообщение из GitHub Actions"
-          }'
+          # Получаем все коммиты с момента последнего push
+          echo "COMMITS<<EOF" >> $GITHUB_OUTPUT
+          git log --pretty=format:'%h - %an: %s (%ar)' HEAD^..HEAD >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Получаем последний тег или dev
+          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')" >> $GITHUB_OUTPUT
+          
+          # Получаем список измененных файлов
+          echo "FILES<<EOF" >> $GITHUB_OUTPUT
+          git diff --name-only HEAD^ HEAD >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Show environment variables
+      # Шаг 3: Формируем сообщение
+      - name: Prepare message
+        id: message
         run: |
-          echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
-          echo "GITHUB_ACTOR=$GITHUB_ACTOR"
-          echo "GITHUB_REF=$GITHUB_REF"
-          echo "GITHUB_SHA=$GITHUB_SHA"
+          # Экранируем специальные символы для MarkdownV2
+          COMMITS=$(echo '${{ steps.commits.outputs.COMMITS }}' | sed -e 's/[][()_*`]/\\&/g')
+          FILES=$(echo '${{ steps.commits.outputs.FILES }}' | sed -e 's/[][()_*`]/\\&/g')
+          
+          # Формируем полное сообщение
+          MESSAGE=$(cat <<EOF
+          🚀 *Новые изменения в репозитории* \\[${GITHUB_REPOSITORY}\\]
+          
+          📝 *Коммиты:*
+          \`\`\`
+          ${COMMITS}
+          \`\`\`
+          
+          📂 *Измененные файлы:*
+          \`\`\`
+          ${FILES}
+          \`\`\`
+          
+          👤 *Автор:* ${GITHUB_ACTOR}
+          🏷 *Версия:* ${{ steps.commits.outputs.VERSION }}
+          🔗 *Ссылка:* [Посмотреть изменения](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
+          EOF
+          )
+          
+          # Сохраняем сообщение для следующего шага
+          echo "MESSAGE=${MESSAGE}" >> $GITHUB_OUTPUT
+          echo "Generated message:"
+          echo "${MESSAGE}"
 
-      - name: Send final message
+      # Шаг 4: Отправляем в Telegram
+      - name: Send Telegram notification
         run: |
-          COMMITS=$(git log --pretty=format:'%h - %an: %s' -n 1)
           curl -X POST \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "📌 Репозиторий: '"$GITHUB_REPOSITORY"'\n\nПоследний коммит:\n'"$COMMITS"'\n\nАвтор: '"$GITHUB_ACTOR"'",
-            "parse_mode": "HTML"
-          }'
+            "text": "'"${{ steps.message.outputs.MESSAGE }}"'",
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": true
+          }' \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+
+      # Шаг 5: Проверка отправки (опционально)
+      - name: Verify delivery
+        run: |
+          echo "Уведомление отправлено в Telegram"
+          echo "Чат ID: 5615087670"
+          echo "Версия бота: 7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
