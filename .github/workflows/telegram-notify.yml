@@ -1,4 +1,4 @@
-name: Detailed Telegram Notifier
+name: AI-Powered Telegram Notifier
 on: [push]
 
 jobs:
@@ -8,58 +8,49 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2 
+          fetch-depth: 2
 
-      - name: Get changes details
-        id: changes
-        run: |
-          DIFF_CONTENT=$(git diff HEAD^ HEAD --stat)
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD)
-          COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
-          COMMIT_AUTHOR=$(git log -1 --pretty=format:'%an')
-          COMMIT_DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
+      - name: Analyze changes with AI
+        id: ai_analysis
+        uses: actions/github-script@v6
+        env:
+          DIFF: $(git diff HEAD^ HEAD)
+          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          script: |
+            const { DIFF, OPENAI_KEY } = process.env;
+            const prompt = `
+            Проанализируй git diff и объясни изменения простым языком для игроков:
+            ${DIFF}
+            
+            Сформулируй ответ в таком формате:
+            • [Тип изменения]: [Файл] - [Что изменилось]
+            • Пример: "• Исправление: player/movement.cs - Улучшена обработка столкновений с препятствиями"
+            `;
 
-          echo "DIFF_CONTENT<<EOF" >> $GITHUB_OUTPUT
-          echo "$DIFF_CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_KEY}`
+              },
+              body: JSON.stringify({
+                model: "gpt-3.5-turbo",
+                messages: [{role: "user", content: prompt}],
+                temperature: 0.7
+              })
+            });
 
-          echo "CHANGED_FILES<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            const data = await response.json();
+            return data.choices[0].message.content;
 
-          echo "COMMIT_MSG=$COMMIT_MSG" >> $GITHUB_OUTPUT
-          echo "COMMIT_AUTHOR=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
-          echo "COMMIT_DATE=$COMMIT_DATE" >> $GITHUB_OUTPUT
-
-      - name: Compose detailed message
-        run: |
-          MESSAGE="🔄 *Обновление в проекте*: ${GITHUB_REPOSITORY##*/}
-          
-          📝 *Коммит*: ${{ steps.changes.outputs.COMMIT_MSG }}
-          👤 *Автор*: ${{ steps.changes.outputs.COMMIT_AUTHOR }}
-          📅 *Дата*: ${{ steps.changes.outputs.COMMIT_DATE }}
-          
-          📂 *Измененные файлы*:
-          \`\`\`
-          ${{ steps.changes.outputs.CHANGED_FILES }}
-          \`\`\`
-          
-          📊 *Детали изменений*:
-          \`\`\`
-          ${{ steps.changes.outputs.DIFF_CONTENT }}
-          \`\`\`"
-
-          echo "MESSAGE<<EOF" >> $GITHUB_ENV
-          echo "$MESSAGE" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Send to Telegram
+      - name: Send AI analysis to Telegram
         run: |
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "${{ env.MESSAGE }}",
+            "text": "🧠 *AI-анализ изменений*:\n\n${{ steps.ai_analysis.outputs.result }}\n\n🔗 Полные изменения: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA",
             "parse_mode": "MarkdownV2",
             "disable_web_page_preview": true
           }' \
