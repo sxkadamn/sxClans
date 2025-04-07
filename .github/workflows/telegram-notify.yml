@@ -7,39 +7,30 @@ jobs:
     timeout-minutes: 5
     
     steps:
-      # Шаг 1: Получение кода
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           
-      # Шаг 2: Получение информации о коммитах
       - name: Extract commit data
         id: git-info
         run: |
-          # Получаем последний коммит
-          echo "LAST_COMMIT=$(git log -1 --pretty=format:'%h - %an: %s (%cr)')" >> $GITHUB_OUTPUT
+          # Экранируем специальные символы для MarkdownV2
+          LAST_COMMIT=$(git log -1 --pretty=format:'%h - %an: %s (%cr)' | sed -e 's/[_\*\[\]()~`>#\+\-=|{}\.!]/\\&/g')
+          ALL_COMMITS=$(git log --pretty=format:'• %h - %an: %s (%cr)' HEAD^..HEAD | sed -e 's/[_\*\[\]()~`>#\+\-=|{}\.!]/\\&/g')
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | sed -e 's/[_\*\[\]()~`>#\+\-=|{}\.!]/\\&/g')
           
-          # Получаем все коммиты в этом пуше
-          echo "ALL_COMMITS<<EOF" >> $GITHUB_OUTPUT
-          git log --pretty=format:'• %h - %an: %s (%cr)' HEAD^..HEAD >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          # Получаем измененные файлы
-          echo "CHANGED_FILES<<EOF" >> $GITHUB_OUTPUT
-          git diff --name-only HEAD^ HEAD >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          # Получаем версию (последний тег)
+          echo "LAST_COMMIT=${LAST_COMMIT}" >> $GITHUB_OUTPUT
+          echo "ALL_COMMITS=${ALL_COMMITS}" >> $GITHUB_OUTPUT
+          echo "CHANGED_FILES=${CHANGED_FILES}" >> $GITHUB_OUTPUT
           echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')" >> $GITHUB_OUTPUT
 
-      # Шаг 3: Формирование сообщения
       - name: Compose notification
         id: compose
         run: |
-          # Форматируем сообщение с правильным экранированием
+          # Формируем сообщение с правильным экранированием
           MESSAGE=$(cat <<EOF
-          🔔 *Новые изменения в репозитории* \\[${GITHUB_REPOSITORY}\\]
+          🔔 *Новые изменения в репозитории* \\[${GITHUB_REPOSITORY//_/\\_}\\]
           
           📌 *Последний коммит:*
           \`\`\`
@@ -54,33 +45,26 @@ jobs:
           ${{ steps.git-info.outputs.CHANGED_FILES }}
           \`\`\`
           
-          👤 *Автор:* ${GITHUB_ACTOR}
+          👤 *Автор:* ${GITHUB_ACTOR//_/\\_}
           🏷 *Версия:* ${{ steps.git-info.outputs.VERSION }}
           🔗 *Ссылка:* [Открыть изменения](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
           EOF
           )
           
-          echo "MESSAGE=${MESSAGE}" >> $GITHUB_OUTPUT
+          # Сохраняем сообщение как output
+          MESSAGE_JSON=$(jq -n --arg msg "$MESSAGE" '{message: $msg}')
+          echo "MESSAGE_JSON=${MESSAGE_JSON}" >> $GITHUB_OUTPUT
           echo "Сообщение сформировано:"
           echo "${MESSAGE}"
 
-      # Шаг 4: Отправка в Telegram
       - name: Send to Telegram
         run: |
-          curl -X POST \
+          curl -v -X POST \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "'"${{ steps.compose.outputs.MESSAGE }}"'",
+            "text": ${{ steps.compose.outputs.MESSAGE_JSON }.message},
             "parse_mode": "MarkdownV2",
             "disable_web_page_preview": true
           }' \
           "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
-
-      # Шаг 5: Проверка
-      - name: Verify results
-        run: |
-          echo "Уведомление отправлено"
-          echo "Чат: 5615087670"
-          echo "Бот: 7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
-          echo "Время: $(date)"
