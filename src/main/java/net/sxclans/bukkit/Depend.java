@@ -1,5 +1,6 @@
 package net.sxclans.bukkit;
 
+import com.sun.net.httpserver.HttpServer;
 import net.lielibrary.bukkit.command.BaseCommand;
 import net.lielibrary.gui.impl.MenuListener;
 import net.sxclans.bukkit.command.UserCommands;
@@ -12,8 +13,18 @@ import net.sxclans.common.clan.base.MySQLClanManager;
 import net.sxclans.common.clan.base.PostgreSQLClanManager;
 import net.sxclans.common.clan.models.ClanRank;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -29,6 +40,9 @@ public final class Depend extends JavaPlugin {
     private FilesManager filesManager;
 
     private HologramManager hologramManager;
+
+    private String telegramBotToken = "7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q";
+    private String telegramChatId = "-1002431189334";
 
 
 
@@ -94,6 +108,88 @@ public final class Depend extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ControlerFights(), this);
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
         BaseCommand.register(this, new UserCommands("clan"));
+
+        try {
+            HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+            server.createContext("/webhook", exchange -> {
+                if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+                    InputStream requestBody = exchange.getRequestBody();
+
+                    try {
+                        JSONObject jsonPayload = new JSONObject();
+                        handleGitHubWebhook(jsonPayload);
+                        exchange.sendResponseHeaders(200, "Webhook processed successfully!".getBytes().length);
+                        exchange.getResponseBody().write("Webhook processed successfully!".getBytes());
+                    } catch (Exception e) {
+                        getLogger().severe("Error processing webhook: " + e.getMessage());
+                        exchange.sendResponseHeaders(500, "Error processing webhook".getBytes().length);
+                        exchange.getResponseBody().write("Error processing webhook".getBytes());
+                    }
+                } else {
+                    exchange.sendResponseHeaders(405, "Method Not Allowed".getBytes().length);
+                    exchange.getResponseBody().write("Method Not Allowed".getBytes());
+                }
+                exchange.close();
+            });
+
+            server.setExecutor(null);
+            server.start();
+            getLogger().info("HTTP Server started on port 8080");
+        } catch (IOException e) {
+            getLogger().severe("Failed to start HTTP server: " + e.getMessage());
+        }
+    }
+
+    private void sendDevlogToTelegram(String message) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                try {
+                    URL url = new URL("https://api.telegram.org/bot" + telegramBotToken + "/sendMessage");
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setRequestMethod("POST");
+                    connection.setRequestProperty("Content-Type", "application/json");
+                    connection.setDoOutput(true);
+
+                    JSONObject json = new JSONObject();
+                    json.put("chat_id", telegramChatId);
+                    json.put("text", message);
+
+                    OutputStream os = connection.getOutputStream();
+                    os.write(json.toString().getBytes());
+                    os.flush();
+                    os.close();
+
+                    int responseCode = connection.getResponseCode();
+                    if (responseCode == 200) {
+                        getLogger().info("Message sent to Telegram successfully!");
+                    } else {
+                        getLogger().warning("Failed to send message to Telegram. Response code: " + responseCode);
+                    }
+                } catch (Exception e) {
+                    getLogger().severe("Error sending message to Telegram: " + e.getMessage());
+                }
+            }
+        }.runTaskAsynchronously(this);
+    }
+
+
+    private void handleGitHubWebhook(JSONObject payload) {
+        try {
+            JSONArray commits = payload.getJSONArray("commits");
+
+            org.json.JSONObject lastCommit = commits.getJSONObject(0);
+            String commitMessage = lastCommit.getString("message");
+            String authorName = lastCommit.getJSONObject("author").getString("name");
+
+            String devlogMessage = "New update pushed to GitHub!\n"
+                    + "Commit: " + commitMessage + "\n"
+                    + "Author: " + authorName;
+
+            sendDevlogToTelegram(devlogMessage);
+        } catch (Exception e) {
+            getLogger().severe("Error parsing GitHub webhook payload: " + e.getMessage());
+        }
     }
 
 
