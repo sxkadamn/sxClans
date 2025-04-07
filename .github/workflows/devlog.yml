@@ -1,0 +1,21 @@
+name: Devlog to Telegram
+on:
+  push:
+    branches: [ main ]
+jobs:
+  send-devlog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Send to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          COMMITS=$(git log --pretty=format:"%h - %an: %s" HEAD^..HEAD)
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"$CHAT_ID\",\"text\":\"📦 Changes:\n\`\`\`$COMMITS\`\`\`\",\"parse_mode\":\"Markdown\"}" \
+            "https://api.telegram.org/bot$BOT_TOKEN/sendMessage"
