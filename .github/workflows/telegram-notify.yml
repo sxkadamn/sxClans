@@ -1,4 +1,4 @@
-name: AI Git Analyzer
+name: Simple Git Notifier
 
 on: [push]
 
@@ -12,85 +12,30 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Get git diff
-        id: git_diff
+      - name: Get commit info
+        id: commit_info
         run: |
-          git diff HEAD^ HEAD > diff.txt
-          echo "DIFF_CONTENT=$(jq -Rs < diff.txt)" >> $GITHUB_OUTPUT
-          echo "COMMIT_MESSAGE=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
+          GIT_DIFF=$(git diff HEAD^ HEAD --stat)
 
-      - name: Analyze with AI (optional)
-        id: ai_analysis
-        uses: actions/github-script@v6
-        continue-on-error: true
-        env:
-          OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
-          DIFF: ${{ steps.git_diff.outputs.DIFF_CONTENT }}
-        with:
-          script: |
-            const core = require('@actions/core');
-            const { OPENAI_KEY, DIFF } = process.env;
-
-            if (!OPENAI_KEY) {
-              core.setOutput("result", "🔍 OpenAI ключ не найден. Отправляю обычный diff.");
-              return;
-            }
-
-            try {
-              const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${OPENAI_KEY}`
-                },
-                body: JSON.stringify({
-                  model: "gpt-3.5-turbo",
-                  messages: [{
-                    role: "user",
-                    content: `Проанализируй изменения в коде:\n${DIFF}\n\nКраткий вывод:`
-                  }],
-                  temperature: 0.7,
-                  max_tokens: 500
-                })
-              });
-
-              const data = await response.json();
-              const result = data.choices?.[0]?.message?.content || '⚠️ Ответ от OpenAI отсутствует';
-              core.setOutput("result", result);
-            } catch (error) {
-              core.setOutput("result", `❌ Ошибка анализа: ${error.message}\n\n📦 Обычный diff:\n${DIFF}`);
-            }
+          echo "COMMIT_MESSAGE=$COMMIT_MESSAGE" >> $GITHUB_ENV
+          echo "COMMIT_URL=$COMMIT_URL" >> $GITHUB_ENV
+          echo "GIT_DIFF=$GIT_DIFF" >> $GITHUB_ENV
 
       - name: Send to Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          RAW_TEXT="${{ steps.ai_analysis.outputs.result }}"
-          FALLBACK_TEXT="*Коммит:* _${{ steps.git_diff.outputs.COMMIT_MESSAGE }}_"
+          TELEGRAM_BOT_TOKEN="7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
+          CHAT_ID="5615087670"
 
-          ESCAPED_TEXT=$(echo "$RAW_TEXT" | sed \
-            -e 's/\*/\\*/g' \
-            -e 's/_/\\_/g' \
-            -e 's/\[/\\[/g' \
-            -e 's/\]/\\]/g' \
-            -e 's/(/\\(/g' \
-            -e 's/)/\\)/g' \
-            -e 's/\~/\\~/g' \
-            -e 's/\`/\\`/g' \
-            -e 's/>/\\>/g' \
-            -e 's/#/\\#/g' \
-            -e 's/\+/\\+/g' \
-            -e 's/\-/\\-/g' \
-            -e 's/=/\\=/g' \
-            -e 's/!/\\!/g' \
-            -e 's/\./\\./g')
+          # Экранируем Markdown символы
+          ESCAPED_COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' -e 's/=/\\=/g' -e 's/!/\\!/g' -e 's/\./\\./g')
+          ESCAPED_DIFF=$(echo "$GIT_DIFF" | sed -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' -e 's/=/\\=/g' -e 's/!/\\!/g' -e 's/\./\\./g')
 
-          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
-
-          MESSAGE="🤖 *AI Анализ изменений:*\n\n$ESCAPED_TEXT\n\n🔗 *Ссылка:* [$GITHUB_SHA]($COMMIT_URL)\n\n$FALLBACK_TEXT"
+          MESSAGE="🚀 *Новый коммит в репозитории:*\n\n📄 *Описание:* $ESCAPED_COMMIT_MESSAGE\n\n🛠 *Изменения:*\n\`\`\`\n$ESCAPED_DIFF\n\`\`\`\n🔗 [Посмотреть на GitHub]($COMMIT_URL)"
 
           JSON_PAYLOAD=$(jq -n \
-            --arg chat_id "5615087670" \
+            --arg chat_id "$CHAT_ID" \
             --arg text "$MESSAGE" \
             '{
               chat_id: $chat_id,
@@ -102,4 +47,4 @@ jobs:
           curl -s -X POST \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
+            "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage"
