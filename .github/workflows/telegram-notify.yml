@@ -5,34 +5,37 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Get commit info
-        id: commits
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify bot access
         run: |
-          echo "COMMITS=$(git log --pretty=format:'%h - %an: %s' HEAD^..HEAD | sed 's/[][_*`]/\\&/g')" >> $GITHUB_OUTPUT
-          echo "VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo 'dev')" >> $GITHUB_OUTPUT
-      
-      - name: Send to Telegram
+          echo "Проверяем доступность бота..."
+          curl -s "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/getMe" | jq
+          echo ""
+
+      - name: Test simple message
         run: |
-          MESSAGE=$(cat <<EOF
-          📌 Новые изменения в $GITHUB_REPOSITORY
+          curl -v -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d '{"chat_id": "5615087670", "text": "Тестовое сообщение из GitHub"}'
 
-          Коммиты:
-          ${{ steps.commits.outputs.COMMITS }}
+      - name: Prepare notification
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=format:'%h - %s')
+          echo "REPO=${GITHUB_REPOSITORY}" >> $GITHUB_ENV
+          echo "COMMIT=${COMMIT_MSG}" >> $GITHUB_ENV
+          echo "ACTOR=${GITHUB_ACTOR}" >> $GITHUB_ENV
+          echo "SHA=${GITHUB_SHA}" >> $GITHUB_ENV
 
-          Автор: $GITHUB_ACTOR
-          Версия: ${{ steps.commits.outputs.VERSION }}
-          EOF
-          )
-
-          curl -X POST \
+      - name: Send formatted message
+        run: |
+          curl -v -X POST \
+          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage" \
           -H "Content-Type: application/json" \
           -d '{
             "chat_id": "5615087670",
-            "text": "'"$MESSAGE"'",
-            "parse_mode": "Markdown"
-          }' \
-          "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
+            "text": "📌 Репозиторий: ${{ env.REPO }}\n\n🔹 Коммит: ${{ env.COMMIT }}\n👤 Автор: ${{ env.ACTOR }}\n🔗 Ссылка: https://github.com/${{ env.REPO }}/commit/${{ env.SHA }}",
+            "parse_mode": "HTML"
+          }'
