@@ -17,10 +17,12 @@ jobs:
         run: |
           git diff HEAD^ HEAD > diff.txt
           echo "DIFF_CONTENT=$(jq -Rs < diff.txt)" >> $GITHUB_OUTPUT
+          echo "COMMIT_MESSAGE=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
 
-      - name: Analyze with AI
+      - name: Analyze with AI (optional)
         id: ai_analysis
         uses: actions/github-script@v6
+        continue-on-error: true
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_API_KEY }}
           DIFF: ${{ steps.git_diff.outputs.DIFF_CONTENT }}
@@ -28,6 +30,11 @@ jobs:
           script: |
             const core = require('@actions/core');
             const { OPENAI_KEY, DIFF } = process.env;
+
+            if (!OPENAI_KEY) {
+              core.setOutput("result", "🔍 OpenAI ключ не найден. Отправляю обычный diff.");
+              return;
+            }
 
             try {
               const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -51,7 +58,7 @@ jobs:
               const result = data.choices?.[0]?.message?.content || '⚠️ Ответ от OpenAI отсутствует';
               core.setOutput("result", result);
             } catch (error) {
-              core.setOutput("result", `❌ Ошибка анализа: ${error.message}`);
+              core.setOutput("result", `❌ Ошибка анализа: ${error.message}\n\n📦 Обычный diff:\n${DIFF}`);
             }
 
       - name: Send to Telegram
@@ -59,6 +66,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           RAW_TEXT="${{ steps.ai_analysis.outputs.result }}"
+          FALLBACK_TEXT="*Коммит:* _${{ steps.git_diff.outputs.COMMIT_MESSAGE }}_"
 
           ESCAPED_TEXT=$(echo "$RAW_TEXT" | sed \
             -e 's/\*/\\*/g' \
@@ -79,7 +87,7 @@ jobs:
 
           COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
 
-          MESSAGE="🤖 *AI Анализ изменений*:\n\n$ESCAPED_TEXT\n\n🔗 *Коммит*: [$GITHUB_SHA]($COMMIT_URL)"
+          MESSAGE="🤖 *AI Анализ изменений:*\n\n$ESCAPED_TEXT\n\n🔗 *Ссылка:* [$GITHUB_SHA]($COMMIT_URL)\n\n$FALLBACK_TEXT"
 
           JSON_PAYLOAD=$(jq -n \
             --arg chat_id "5615087670" \
