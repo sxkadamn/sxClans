@@ -19,7 +19,7 @@ jobs:
           curl -X POST \
           -H "Content-Type: application/json" \
           -d '{
-            "chat_id": "ВАШ_USER_ID",
+            "chat_id": "5615087670",
             "text": "📌 Новые изменения в ${GITHUB_REPOSITORY}\n\nКоммиты:\n${{ steps.commits.outputs.COMMITS }}\n\nАвтор: ${GITHUB_ACTOR}",
             "parse_mode": "Markdown"
           }' \
