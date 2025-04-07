@@ -13,11 +13,13 @@ jobs:
       - name: Prepare notification data
         id: prepare
         run: |
+          # Получаем основные данные
           COMMIT_MSG=$(git log -1 --pretty=format:'%s')
           AUTHOR=$(git log -1 --pretty=format:'%an')
           DATE=$(git log -1 --pretty=format:'%cd' --date=format:'%Y-%m-%d %H:%M')
           COMMIT_LINK="https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
 
+          # Формируем список изменений
           CHANGES=$(git diff --name-status HEAD^ HEAD | while read status file; do
             case $status in
               A) echo "• 🆕 $file";;
@@ -26,39 +28,47 @@ jobs:
               R*) echo "• ♻️ ${file#*$'\t'}";;
               C) echo "• ©️ $file";;
               *) echo "• 🔄 $file";;
-            esac
-          done | tr '\n' ' ')
+            done | tr '\n' '\t')
 
+          # Получаем статистику изменений
           DETAILS=$(git diff --stat HEAD^ HEAD)
-          
-          MESSAGE_JSON=$(jq -n \
-            --arg repo "${GITHUB_REPOSITORY##*/}" \
-            --arg msg "$COMMIT_MSG" \
-            --arg author "$AUTHOR" \
-            --arg date "$DATE" \
-            --arg changes "$CHANGES" \
-            --arg details "$DETAILS" \
-            --arg link "$COMMIT_LINK" \
-            '{
-              chat_id: "5615087670",
-              text: ("📌 *Обновление в проекте*: " + $repo + "\n\n" +
-                    "📝 *Коммит*: " + $msg + "\n" +
-                    "👤 *Автор*: " + $author + "\n" +
-                    "📅 *Дата*: " + $date + "\n\n" +
-                    "📂 *Изменения*:\n" + $changes + "\n\n" +
-                    "📊 *Детали*:\n```\n" + $details + "\n```\n\n" +
-                    "🔗 *Ссылка*: " + $link),
-              parse_mode: "MarkdownV2",
-              disable_web_page_preview: true
-            }')
 
-          echo "MESSAGE_JSON=${MESSAGE_JSON}" >> $GITHUB_OUTPUT
-          echo "Generated message:"
-          echo "$MESSAGE_JSON" | jq -r '.text'
+          # Формируем текст сообщения
+          MESSAGE="📌 *Обновление в проекте*: ${GITHUB_REPOSITORY##*/}
+          
+          📝 *Коммит*: $COMMIT_MSG
+          👤 *Автор*: $AUTHOR
+          📅 *Дата*: $DATE
+          
+          📂 *Изменения*:
+          ${CHANGES//$'\t'/$'\n'}
+          
+          📊 *Детали*:
+          \`\`\`
+          $DETAILS
+          \`\`\`
+          
+          🔗 *Ссылка*: $COMMIT_LINK"
+
+          # Сохраняем в файл
+          echo "$MESSAGE" > message.txt
+          echo "MESSAGE=$(jq -Rs < message.txt)" >> $GITHUB_OUTPUT
 
       - name: Send to Telegram
         run: |
-          curl -v -X POST \
+          # Читаем сообщение из файла
+          MESSAGE=$(cat message.txt)
+          
+          # Формируем JSON вручную
+          JSON_DATA='{
+            "chat_id": "5615087670",
+            "text": $MESSAGE,
+            "parse_mode": "MarkdownV2",
+            "disable_web_page_preview": true
+          }'
+          
+          # Отправляем с правильным экранированием
+          curl -X POST \
             -H "Content-Type: application/json" \
-            -d '${{ steps.prepare.outputs.MESSAGE_JSON }}' \
+            -d "$JSON_DATA" \
             "https://api.telegram.org/bot7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q/sendMessage"
