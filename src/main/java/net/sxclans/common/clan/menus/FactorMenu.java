@@ -139,7 +139,7 @@ public class FactorMenu {
             }
             new WarMenu(player, filesManager).open();
         });
-        menu.setSlot(config.getInt("menu.buttons.war.slot", 24), warButton);
+        menu.setSlot(config.getInt("menu.buttons.war.slot"), warButton);
 
         menu.open(player);
     }

@@ -68,7 +68,7 @@ menu:
     war:
       item: "IRON_SWORD"
       display: "&4Клановые войны"
-      slot: 24
+      slot: 32
   filler:
     material: "GRAY_STAINED_GLASS_PANE"
     slots:
