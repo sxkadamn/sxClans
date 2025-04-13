@@ -59,9 +59,10 @@ public class MembersMenu {
         if (menu == null || config == null) return;
 
         for (int slot : config.fillerSlots()) {
-            if (slot >= 0 && slot < config.size()) {
+            if (slot >= 0 && slot < config.size() * 9) {
                 menu.setSlot(slot, new Button(config.fillerMaterial())
                         .setDisplay(" ")
+                        .disableInteract(true)
                         .applyMeta(meta -> meta));
             }
         }
@@ -72,6 +73,7 @@ public class MembersMenu {
                 .mapToObj(slot -> createButton(slot, clan.getMembers().get(slot), hasPermission))
                 .filter(Objects::nonNull)
                 .forEach(entry -> menu.setSlot(entry.getKey(), entry.getValue()));
+        menu.refreshItems();
 
         menu.open(player);
     }

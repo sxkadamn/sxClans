@@ -30,7 +30,6 @@ public class ClanInviteManager {
                 .filter(invite -> invite.status() == ClanInvite.InviteStatus.PENDING && !invite.isExpired(timeoutTicks))
                 .ifPresent(invite -> {
                     sender.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("errors.already_invited")));
-                    return;
                 });
 
         pendingInvites.computeIfPresent(targetId, (id, invite) -> {

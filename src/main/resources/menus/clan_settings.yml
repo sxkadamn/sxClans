@@ -9,6 +9,7 @@ messages:
   base_set: "&aБаза установлена на координаты: %x%, %y%, %z%!"
   insufficient_funds: "&cНедостаточно средств для увеличения лимита!"
   limit_increased: "&aЛимит участников увеличен до %new_limit%!"
+  shop_editor_open: "&aОткрыт редактор магазина клана!"
 
 settings:
   member_limit_increase_step: 5
@@ -40,31 +41,23 @@ buttons:
       - "&7Текущий лимит: %current_limit%"
       - "&7Новый лимит: %new_limit%"
       - "&7Стоимость: %cost%"
+  shop_editor:
+    slot: 16
+    material: "CHEST"
+    display: "&6Редактор магазина"
+    lore:
+      - "&7Нажмите, чтобы изменить предметы в магазине клана"
 
 filler:
   material: GRAY_STAINED_GLASS_PANE
   slots:
     - 0
     - 1
-    - 2
-    - 3
-    - 4
-    - 5
-    - 6
+    - 9
     - 7
     - 8
-    - 9
-    - 11
-    - 13
-    - 15
-    - 16
     - 17
-    - 18
-    - 19
-    - 20
-    - 21
-    - 22
-    - 23
-    - 24
     - 25
     - 26
+    - 18
+    - 19

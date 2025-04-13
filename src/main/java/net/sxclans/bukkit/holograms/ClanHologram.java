@@ -43,7 +43,7 @@ class ClanContentProvider implements IHologramContentProvider<Clan> {
             String line = configLines.get(i)
                     .replace("{name}", clan.getName())
                     .replace("{bank}", String.format("%.2f", clan.getBank()))
-                    .replace("{level}", String.format("%.1f", clan.getLevel()))
+                    .replace("{level}", String.valueOf(clan.getLevel()))
                     .replace("{rubles}", String.format("%.2f", clan.getRubles()))
                     .replace("{leader}", clan.getLeader())
                     .replace("{position}", String.valueOf(i + 1));

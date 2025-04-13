@@ -100,16 +100,35 @@ public class FilesManager implements FilesManagerInterface {
         menuConfigs.forEach((menuKey, config) -> saveMenuConfigToFile(new File(menusFolder, menuKey + ".yml"), config));
     }
 
+    public void saveConfig(String configName, FileConfiguration config) {
+        if (configName == null || config == null) {
+            throw new IllegalArgumentException("Config name and configuration cannot be null");
+        }
+
+        File file = new File(menusFolder, configName + ".yml");
+        saveMenuConfigToFile(file, config);
+    }
+
+
     private void saveMenuConfigToFile(File file, FileConfiguration config) {
         try {
+            if (!file.getParentFile().exists()) {
+                file.getParentFile().mkdirs();
+            }
+
             if (!file.exists()) {
                 file.createNewFile();
             }
             config.save(file);
+
+            String menuKey = file.getName().replace(".yml", "");
+            menuConfigs.put(menuKey, YamlConfiguration.loadConfiguration(file));
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+
 
     public void removeMenuConfig(String menuKey) {
         File file = new File(menusFolder, menuKey + ".yml");

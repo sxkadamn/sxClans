@@ -1,38 +1,23 @@
-title: "📜 Состав клана"
+title: "&f Состав клана"
 size: 6
 member_button:
-  display: "{#FFFF00}{player}"
-  rank: "🏅 {#808080}Ранг: {rank}"
-  online: "🌐 {#808080}Онлайн: {status}"
+  display: "&e{player}"
+  rank: "&7 Ранг: {rank}"
+  online: "&7 Онлайн: {status}"
 online_status:
-  online: "{#00FF00}В сети"
-  offline: "{#FF0000}Оффлайн"
+  online: "&aВ сети"
+  offline: "&cОффлайн"
 filler:
   material: GRAY_STAINED_GLASS_PANE
   slots:
     - 0
     - 1
-    - 2
-    - 3
-    - 4
-    - 5
-    - 6
+    - 9
     - 7
     - 8
-    - 9
     - 17
-    - 18
-    - 26
-    - 27
-    - 35
-    - 36
-    - 44
     - 45
-    - 46
-    - 47
-    - 48
-    - 49
-    - 50
-    - 51
+    - 44
     - 52
     - 53
+    - 36

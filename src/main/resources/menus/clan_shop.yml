@@ -1,0 +1,61 @@
+editor_menu:
+  title: "&aРедактор предметов"
+
+  rows: 6
+  filler:
+    material: "GRAY_STAINED_GLASS_PANE"
+    slots:
+      - 0
+      - 1
+      - 9
+      - 7
+      - 8
+      - 17
+      - 45
+      - 44
+      - 52
+      - 53
+      - 36
+
+  save_button:
+    display_name: "&aСохранить предметы <"
+    material: "GREEN_STAINED_GLASS_PANE"
+    slot: 49
+
+  default_price: 1.0
+  default_amount: 1
+  default_required_level: 1
+  default_lore:
+    - ''
+    - '&6Цена: &7%price%'
+    - '&6Уровень: &7%level%'
+    - ''
+    - '&aКупить &c-> &6ЛКМ &7- ПКМ'
+  messages:
+    saved: "&aИзменения успешно сохранены!"
+    insufficient_funds: "&cНедостаточно средств в банке клана!"
+    purchase_success: "&aВы успешно приобрели предмет!"
+menu:
+  title: "&6Магазин клана(ДЛя участников)"
+  size: 6
+  filler:
+    material: "GRAY_STAINED_GLASS_PANE"
+    slots:
+      - 0
+      - 1
+      - 9
+      - 7
+      - 8
+      - 17
+      - 45
+      - 44
+      - 52
+      - 53
+      - 36
+messages:
+  insufficient_funds: "&cНедостаточно средств в банке клана!"
+  purchase_success: "&aПокупка успешно завершена!"
+  menu_open_error: "&cНе удалось открыть меню магазина!"
+  level_too_low: "&cВаш клан не достиг требуемого уровня!"
+
+

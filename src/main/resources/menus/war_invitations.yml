@@ -1,0 +1,33 @@
+title: "&cПриглашения на войну"
+size: 3
+filler:
+  material: "GRAY_STAINED_GLASS_PANE"
+  slots:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+    - 9
+    - 17
+    - 18
+    - 19
+    - 20
+    - 21
+    - 22
+    - 23
+    - 24
+    - 25
+    - 26
+
+button:
+  accept:
+    display: "&aПринять запрос от {clan}"
+    material: "LIME_BANNER"
+  decline:
+    display: "&cОтклонить запрос от {clan}"
+    material: "RED_BANNER"

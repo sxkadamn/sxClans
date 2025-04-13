@@ -23,7 +23,12 @@ public class Clan implements Serializable {
     private int memberLimit;
     private double bank;
     private double rubles;
-    private double level;
+    private int level;
+
+    private List<String> warParticipants;
+    private boolean isInWar;
+    private String enemyClanName;
+    private int warScore;
 
     public Clan(String name, String owner) {
         this.name = name;
@@ -39,6 +44,11 @@ public class Clan implements Serializable {
 
         members.add(owner);
         memberRanks.put(owner, ClanRank.LEADER);
+
+        this.warParticipants = new ArrayList<>();
+        this.isInWar = false;
+        this.enemyClanName = null;
+        this.warScore = 0;
     }
 
     @Serial
@@ -72,6 +82,10 @@ public class Clan implements Serializable {
                 );
             }
         }
+
+        if (warParticipants == null) {
+            warParticipants = new ArrayList<>();
+        }
     }
 
     public void save() {
@@ -103,7 +117,6 @@ public class Clan implements Serializable {
     public ClanRank getRank(String playerName) {
         return memberRanks.getOrDefault(playerName, ClanRank.MEMBER);
     }
-
 
     public Map<String, ClanRank> getMemberRanks() {
         return memberRanks;
@@ -148,12 +161,12 @@ public class Clan implements Serializable {
         save();
     }
 
-    public void addLevel(double amount) {
+    public void addLevel(int amount) {
         this.level += amount;
         save();
     }
 
-    public double getLevel() {
+    public int getLevel() {
         return this.level;
     }
 
@@ -179,8 +192,8 @@ public class Clan implements Serializable {
     }
 
     public void setBaseLocation(Location location) {
-        if (location == null ||
-                location.getWorld() == null) throw new IllegalArgumentException("Локация не может быть null!");
+        if (location == null || location.getWorld() == null)
+            throw new IllegalArgumentException("Локация не может быть null!");
         this.baseLocation = location;
         save();
     }
@@ -197,5 +210,76 @@ public class Clan implements Serializable {
     public String getStrippedName() {
         return name.replaceAll("(?i)[§&][0-9A-FK-ORX]", "");
     }
-}
 
+    public void sendWarRequest(Clan enemyClan) {
+        if (this.isInWar || enemyClan.isInWar) {
+            Depend.getInstance().getLogger().info("Один из кланов уже участвует в войне.");
+            return;
+        }
+        Depend.getClanManage().addWarRequest(this.name, enemyClan.getName());
+    }
+
+    public void acceptWarRequest(Clan enemyClan) {
+        if (this.isInWar || enemyClan.isInWar) {
+            Depend.getInstance().getLogger().info("Один из кланов уже участвует в войне.");
+            return;
+        }
+        this.isInWar = true;
+        enemyClan.setInWar(true);
+        this.enemyClanName = enemyClan.getName();
+        enemyClan.setEnemyClanName(this.name);
+        Depend.getInstance().getLogger().info("Клан " + this.name + " начал войну с " + enemyClan.getName());
+    }
+
+    public void endWar() {
+        this.isInWar = false;
+        this.enemyClanName = null;
+        this.warScore = 0;
+        this.warParticipants.clear();
+    }
+
+    public boolean isInWar() {
+        return isInWar;
+    }
+
+    public void setInWar(boolean inWar) {
+        isInWar = inWar;
+    }
+
+    public String getEnemyClanName() {
+        return enemyClanName;
+    }
+
+    public void setEnemyClanName(String enemyClanName) {
+        this.enemyClanName = enemyClanName;
+    }
+
+    public int getWarScore() {
+        return warScore;
+    }
+
+    public void addWarScore(int score) {
+        this.warScore += score;
+    }
+
+    public List<String> getWarParticipants() {
+        return warParticipants;
+    }
+
+    public void setWarParticipants(List<String> warParticipants) {
+        this.warParticipants = warParticipants;
+    }
+
+    public void addWarParticipant(String playerName) {
+        if (warParticipants == null) {
+            warParticipants = new ArrayList<>();
+        }
+        if (!warParticipants.contains(playerName)) {
+            warParticipants.add(playerName);
+        }
+    }
+
+    public void removeWarParticipant(String playerName) {
+        warParticipants.remove(playerName);
+    }
+}

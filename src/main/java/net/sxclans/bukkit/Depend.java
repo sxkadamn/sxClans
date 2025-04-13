@@ -1,12 +1,12 @@
 package net.sxclans.bukkit;
 
-import com.sun.net.httpserver.HttpServer;
 import net.lielibrary.bukkit.command.BaseCommand;
 import net.lielibrary.gui.impl.MenuListener;
 import net.sxclans.bukkit.command.UserCommands;
 import net.sxclans.bukkit.control.ControlerFights;
 import net.sxclans.bukkit.files.FilesManager;
 import net.sxclans.bukkit.holograms.HologramManager;
+import net.sxclans.common.Utility;
 import net.sxclans.common.clan.base.ClanBaseManager;
 import net.sxclans.common.clan.base.FileBasedClanManager;
 import net.sxclans.common.clan.base.MySQLClanManager;
@@ -37,10 +37,15 @@ public final class Depend extends JavaPlugin {
     public void onEnable() {
         instance = this;
         saveDefaultConfig();
+
+        Utility.checkPlugin("lieLibrary");
+        Utility.checkPlugin("DecentHolograms");
+        Utility.checkPlugin("Vault");
+
         ClanRank.loadConfig(getConfig());
 
-        String type = getConfig().getString("storage.type").toLowerCase();
 
+        String type = getConfig().getString("storage.type").toLowerCase();
         switch (type) {
             case "mysql" -> {
                 String host = getConfig().getString("mysql.host");
@@ -106,15 +111,23 @@ public final class Depend extends JavaPlugin {
         hologramManager.disable();
     }
 
-    public FilesManager getFilesManager() {
-        return filesManager;
+
+    public static Depend getInstance() {
+        return instance;
     }
+
 
     public static ClanBaseManager getClanManage() {
         return clanManage;
     }
 
-    public static Depend getInstance() {
-        return instance;
+
+    public FilesManager getFilesManager() {
+        return filesManager;
     }
+
+    public void setFilesManager(FilesManager filesManager) {
+        this.filesManager = filesManager;
+    }
+
 }

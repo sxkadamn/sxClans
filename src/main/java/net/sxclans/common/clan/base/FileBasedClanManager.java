@@ -13,11 +13,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-public class FileBasedClanManager implements ClanBaseManager{
+
+public class FileBasedClanManager implements ClanBaseManager {
     private final File directory;
     private final Map<String, Clan> clans = new ConcurrentHashMap<>();
     private final Map<String, String> playerToClan = new ConcurrentHashMap<>();
     private final ReentrantLock saveLock = new ReentrantLock();
+
+    // Новое поле для хранения запросов на войну
+    private final Map<String, String> warRequests = new ConcurrentHashMap<>();
 
     public FileBasedClanManager(File directory) {
         this.directory = Objects.requireNonNull(directory, "Directory cannot be null");
@@ -27,6 +31,7 @@ public class FileBasedClanManager implements ClanBaseManager{
         loadClans();
     }
 
+    @Override
     public void loadClans() {
         File[] files = directory.listFiles((dir, name) -> name.endsWith(".clan"));
         if (files == null) return;
@@ -38,8 +43,7 @@ public class FileBasedClanManager implements ClanBaseManager{
                     clans.put(clan.getName(), clan);
                     clan.getMembers().forEach(member -> playerToClan.put(member, clan.getName()));
                 }
-            } catch (Exception e) {
-                System.err.println("Ошибка загрузки клана из " + file.getName() + ": " + e.getMessage());
+            } catch (Exception ignored) {
             }
         });
     }
@@ -56,10 +60,12 @@ public class FileBasedClanManager implements ClanBaseManager{
         }
     }
 
+    @Override
     public void saveClans() {
         clans.forEach((name, clan) -> saveClanToFile(new File(directory, name + ".clan"), clan));
     }
 
+    @Override
     public void saveClan(Clan clan) {
         saveLock.lock();
         try {
@@ -74,8 +80,7 @@ public class FileBasedClanManager implements ClanBaseManager{
 
             clans.put(clan.getName(), clan);
             clan.getMembers().forEach(member -> playerToClan.put(member, clan.getName()));
-        } catch (Exception e) {
-            System.err.println("Ошибка сохранения клана " + clan.getName() + ": " + e.getMessage());
+        } catch (Exception ignored) {
         } finally {
             saveLock.unlock();
         }
@@ -95,7 +100,7 @@ public class FileBasedClanManager implements ClanBaseManager{
     }
 
 
-
+    @Override
     public void removeClan(Clan clan) {
         saveLock.lock();
         try {
@@ -104,16 +109,17 @@ public class FileBasedClanManager implements ClanBaseManager{
             clans.remove(clan.getName());
             clan.getMembers().forEach(playerToClan::remove);
         } catch (Exception e) {
-            System.err.println("Ошибка удаления клана " + clan.getName() + ": " + e.getMessage());
         } finally {
             saveLock.unlock();
         }
     }
 
+    @Override
     public Clan getClan(String name) {
         return clans.get(name);
     }
 
+    @Override
     public Clan getOwnersClan(String leaderName) {
         return clans.values().stream()
                 .filter(clan -> clan.getLeader().equals(leaderName))
@@ -121,6 +127,7 @@ public class FileBasedClanManager implements ClanBaseManager{
                 .orElse(null);
     }
 
+    @Override
     public Clan getMembersClan(String memberName) {
         String clanName = playerToClan.get(memberName);
         if (clanName == null) {
@@ -140,9 +147,14 @@ public class FileBasedClanManager implements ClanBaseManager{
 
     private Clan readClanFromFile(File file) {
         try (ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(file.toPath()))) {
-            return (Clan) ois.readObject();
+            Clan clan = (Clan) ois.readObject();
+
+            if (clan.getWarParticipants() == null) {
+                clan.setWarParticipants(new ArrayList<>());
+            }
+
+            return clan;
         } catch (Exception e) {
-            System.err.println("Не удалось прочитать файл клана: " + file.getName());
             return null;
         }
     }
@@ -153,5 +165,56 @@ public class FileBasedClanManager implements ClanBaseManager{
 
     public Map<String, Clan> getClans() {
         return new HashMap<>(clans);
+    }
+
+    public void addWarRequest(String senderClanName, String receiverClanName) {
+        if (senderClanName == null || receiverClanName == null) {
+            return;
+        }
+
+        Clan senderClan = clans.get(senderClanName);
+        Clan receiverClan = clans.get(receiverClanName);
+
+        if (senderClan == null || receiverClan == null) {
+            return;
+        }
+
+        if (warRequests.containsKey(receiverClanName)) {
+            return;
+        }
+
+        warRequests.put(receiverClanName, senderClanName);
+    }
+
+    public void acceptWarRequest(String receiverClanName) {
+        String senderClanName = warRequests.get(receiverClanName);
+        if (senderClanName == null) {
+            return;
+        }
+
+        Clan senderClan = clans.get(senderClanName);
+        Clan receiverClan = clans.get(receiverClanName);
+
+        if (senderClan == null || receiverClan == null) {
+            return;
+        }
+
+        senderClan.acceptWarRequest(receiverClan);
+        receiverClan.acceptWarRequest(senderClan);
+
+        warRequests.remove(receiverClanName);
+
+    }
+
+    public void cancelWarRequest(String receiverClanName) {
+        String senderClanName = warRequests.remove(receiverClanName);
+        if (senderClanName == null) {
+            return;
+        }
+
+    }
+
+    public Map<String, String> getWarRequests() {
+        return new HashMap<>(warRequests);
     }
 }

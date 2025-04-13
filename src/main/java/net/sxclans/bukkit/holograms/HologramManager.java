@@ -23,6 +23,7 @@ public class HologramManager {
     private void registerDefaultHolograms() {
         registerHologram("money_top", Comparator.comparingDouble(Clan::getBank).reversed());
         registerHologram("level_top", Comparator.comparingDouble(Clan::getLevel).reversed());
+        registerHologram("rubles_top", Comparator.comparingDouble(Clan::getRubles).reversed());
     }
 
     public void registerHologram(String id, Comparator<Clan> comparator) {

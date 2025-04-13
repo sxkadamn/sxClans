@@ -22,4 +22,11 @@ public interface ClanBaseManager {
 
     Clan getMembersClan(String paramString);
 
+    void addWarRequest(String senderClanName, String receiverClanName);
+
+    void acceptWarRequest(String receiverClanName);
+
+    void cancelWarRequest(String receiverClanName);
+
+    Map<String, String> getWarRequests();
 }

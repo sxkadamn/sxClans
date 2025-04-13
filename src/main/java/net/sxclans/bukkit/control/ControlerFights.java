@@ -11,6 +11,7 @@ import java.util.Optional;
 
 public class ControlerFights implements Listener {
 
+
     @EventHandler
     public void onPlayerDamage(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player target) || !(event.getDamager() instanceof Player damager)) {
@@ -22,7 +23,9 @@ public class ControlerFights implements Listener {
                 .filter(clan -> !clan.isPvpEnabled())
                 .ifPresent(clan -> {
                     event.setCancelled(true);
-                    damager.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&cPvP между соклановцами выключено!"));
+                    damager.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                            Depend.getInstance().getConfig().getString("messages.pvp_disabled")
+                    ));
                 });
     }
 }

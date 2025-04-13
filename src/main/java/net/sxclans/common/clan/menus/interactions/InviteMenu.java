@@ -53,9 +53,10 @@ public class InviteMenu {
         if (menu == null || config == null) return;
 
         for (int slot : config.fillerSlots()) {
-            if (slot >= 0 && slot < config.size()) {
+            if (slot >= 0 && slot < config.size() * 9) {
                 menu.setSlot(slot, new Button(config.fillerMaterial())
                         .setDisplay(" ")
+                        .disableInteract(true)
                         .applyMeta(meta -> meta));
             }
         }
@@ -83,6 +84,7 @@ public class InviteMenu {
                                 }
                                 return meta;
                             }));
+                    menu.refreshItems();
                 });
 
         menu.open(player);

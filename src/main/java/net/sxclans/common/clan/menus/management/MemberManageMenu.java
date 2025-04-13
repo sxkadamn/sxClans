@@ -7,13 +7,11 @@ import net.lielibrary.gui.buttons.ButtonListener;
 import net.sxclans.bukkit.files.FilesManagerInterface;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.models.ClanRank;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.util.Consumer;
 
 import java.util.List;
@@ -69,9 +67,10 @@ public class MemberManageMenu {
         if (menu == null || config == null) return;
 
         for (int slot : config.fillerSlots()) {
-            if (slot >= 0 && slot < config.size()) {
+            if (slot >= 0 && slot < config.size() * 9) {
                 menu.setSlot(slot, new Button(config.fillerMaterial())
                         .setDisplay(" ")
+                        .disableInteract(true)
                         .applyMeta(meta -> meta));
             }
         }
@@ -87,6 +86,7 @@ public class MemberManageMenu {
                             .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
                                     config.kicked())));
                     clan.save();
+                    menu.refreshItems();
                     moderator.closeInventory();
                 }),
                 Map.entry(config.promoteButton().withSlot(config.promoteSlot()), (Consumer<InventoryClickEvent>) event -> {

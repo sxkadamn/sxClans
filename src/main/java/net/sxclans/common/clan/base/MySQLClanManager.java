@@ -32,7 +32,7 @@ public class MySQLClanManager implements ClanBaseManager {
                     member_limit INT,
                     bank DOUBLE,
                     rubles DOUBLE,
-                    level DOUBLE,
+                    level INT,
                     base_world VARCHAR(64),
                     base_x DOUBLE,
                     base_y DOUBLE,
@@ -73,7 +73,7 @@ public class MySQLClanManager implements ClanBaseManager {
                 clan.setMemberLimit(rs.getInt("member_limit"));
                 clan.addMoneyToBank(rs.getDouble("bank") - clan.getBank());
                 clan.addRubles(rs.getDouble("rubles") - clan.getRubles());
-                clan.addLevel(rs.getDouble("level") - clan.getLevel());
+                clan.addLevel(rs.getInt("level") - clan.getLevel());
 
                 String worldName = rs.getString("base_world");
                 if (worldName != null) {
@@ -227,5 +227,25 @@ public class MySQLClanManager implements ClanBaseManager {
     public Clan getMembersClan(String memberName) {
         String name = playerToClan.get(memberName);
         return name == null ? null : clans.get(name);
+    }
+
+    @Override
+    public void addWarRequest(String senderClanName, String receiverClanName) {
+
+    }
+
+    @Override
+    public void acceptWarRequest(String receiverClanName) {
+
+    }
+
+    @Override
+    public void cancelWarRequest(String receiverClanName) {
+
+    }
+
+    @Override
+    public Map<String, String> getWarRequests() {
+        return Map.of();
     }
 }

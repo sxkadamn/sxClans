@@ -1,0 +1,18 @@
+title: "&cВыбор противника"
+size: 3
+filler:
+  material: "GRAY_STAINED_GLASS_PANE"
+  slots:
+    - 0
+    - 1
+    - 9
+    - 7
+    - 8
+    - 17
+    - 25
+    - 26
+    - 18
+    - 19
+
+button:
+  display: "&cВыбрать клан {clan}"
