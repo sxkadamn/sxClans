@@ -10,37 +10,39 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Чтобы был доступен предыдущий коммит
+          fetch-depth: 2
 
-      - name: Get commit message and diff
-        id: commit_info
+      - name: Get commit info and diff
         run: |
           COMMIT_MSG=$(git log -1 --pretty=format:"%s%n%n%b")
           DIFF=$(git diff HEAD^ HEAD --stat)
+          COMMIT_URL="https://github.com/${{ github.repository }}/commit/${{ github.sha }}"
 
           # Экранируем спецсимволы MarkdownV2
           escape() {
             echo "$1" | sed \
               -e 's/\\/\\\\/g' \
               -e 's/\*/\\*/g' -e 's/_/\\_/g' -e 's/\[/\\[/g' -e 's/\]/\\]/g' \
-              -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\`/\\`/g' \
+              -e 's/(/\\(/g' -e 's/)/\\)/g' -e 's/\~/\\~/g' -e 's/\//\\\//g' \
               -e 's/>/\\>/g' -e 's/#/\\#/g' -e 's/\+/\\+/g' -e 's/\-/\\-/g' \
-              -e 's/\=/\\=/g' -e 's/\!/\\!/g' -e 's/\./\\./g'
+              -e 's/\=/\\=/g' -e 's/\!/\\!/g' -e 's/\./\\./g' -e 's/\$/\\\$/g'
           }
 
           ESCAPED_MSG=$(escape "$COMMIT_MSG")
           ESCAPED_DIFF=$(escape "$DIFF")
+          ESCAPED_URL=$(escape "$COMMIT_URL")
 
-          echo "COMMIT_MESSAGE=${ESCAPED_MSG}" >> $GITHUB_OUTPUT
-          echo "COMMIT_DIFF=${ESCAPED_DIFF}" >> $GITHUB_OUTPUT
-          echo "COMMIT_URL=https://github.com/${{ github.repository }}/commit/${{ github.sha }}" >> $GITHUB_OUTPUT
+          # Собираем финальный текст
+          TEXT="🚀 *Новый коммит в репозитории*📄 *Описание:*$ESCAPED_MSG🛠 *Изменения:*\\\\$ESCAPED_DIFF\\\\\🔗 [Посмотреть на GitHub]($ESCAPED_URL)"
 
-      - name: Send message to Telegram
+          echo "TEXT<<EOF" >> $GITHUB_ENV
+          echo "$TEXT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Send to Telegram
         run: |
           TOKEN="7715307360:AAFvEpydlOSPY_pGT51AbExRAaECg-1P06Q"
           CHAT_ID="5615087670"
-
-          TEXT="🚀 *Новый коммит в репозитории*\n\n📄 *Описание:*\n${{ steps.commit_info.outputs.COMMIT_MESSAGE }}\n\n🛠 *Изменения:*\n\`\`\`\n${{ steps.commit_info.outputs.COMMIT_DIFF }}\n\`\`\`\n🔗 [Посмотреть на GitHub](${{ steps.commit_info.outputs.COMMIT_URL }})"
 
           JSON=$(jq -n \
             --arg chat_id "$CHAT_ID" \
