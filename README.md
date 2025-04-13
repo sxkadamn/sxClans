@@ -29,15 +29,30 @@
 Example basic configuration:  
 
 ```yaml
+storage:
+  type: sqlite #postgresql, mysql
+  mysql:
+    host: localhost
+    port: 3306
+    database: sxclans
+    username: root
+    password: ""
+  postgresql:
+    host: localhost
+    port: 5432
+    database: sxclans
+    username: postgres
+    password: ""
+
 default_member_limit: 10
 clan_ranks:
-  leader: "👑 Владелец"
-  co_leader: "🛡️ Заместитель"
-  moderator: "⚔️ Модератор"
-  member: "👥 Участник"
+  leader: " OWNER"
+  co_leader: " CO-OWNER"
+  moderator: " MODERATOR"
+  member: " MEMBER"
 invite:
-  invite_message: "📜 &e{sender} приглашает вас в клан 🏰 {clan}"
-  sent_message: "✅ &aВы отправили приглашение игроку {target}"
+  invite_message: " &e{sender} приглашает вас в клан  {clan}"
+  sent_message: " &aВы отправили приглашение игроку {target}"
   timeout: 1200
   buttons:
     accept: "✅ &a[ПРИНЯТЬ]"
@@ -48,7 +63,7 @@ invite:
     no_invite: "&cУ вас нет активных приглашений!"
     expired_sender: "&cПриглашение игроку {target} истекло."
     expired_target: "&cВаше приглашение в клан истекло."
-    accepted: "&aВы вступили в клан 🏰 {clan}!"
+    accepted: "&aВы вступили в клан  {clan}!"
     accepted_sender: "&aИгрок {player} присоединился к клану!"
     denied: "&cВы отклонили приглашение в клан."
     denied_sender: "&c{player} отклонил ваше приглашение."
@@ -72,7 +87,7 @@ holograms:
       z: 200.5
     update_interval_seconds: 300
     header:
-      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ &6&l◈"
+      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ (МОНЕТЫ) &6&l◈"
       - "&7&m---------------------"
     lines:
       - "&e1. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
@@ -80,6 +95,26 @@ holograms:
       - "&e3. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
       - "&74. &f{name} &8- &a{bank}$ &7(Лидер: {leader})"
       - "&e5. &6{name} &8- &a{bank}$ &7(Лидер: {leader})"
+    footer:
+      - "&7&m---------------------"
+      - "&6Обновлено: &e{time}"
+  rubles_top:
+    enabled: true
+    location:
+      world: world
+      x: 100.5
+      y: 64.0
+      z: 200.5
+    update_interval_seconds: 300
+    header:
+      - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ (РУБЛИ) &6&l◈"
+      - "&7&m---------------------"
+    lines:
+      - "&e1. &6{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&72. &f{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&e3. &6{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&74. &f{name} &8- &a{rubles}$ &7(Лидер: {leader})"
+      - "&e5. &6{name} &8- &a{rubles}$ &7(Лидер: {leader})"
     footer:
       - "&7&m---------------------"
       - "&6Обновлено: &e{time}"
@@ -104,6 +139,8 @@ holograms:
 
 
 messages:
+  plugin_not_enabled: "Для работы плагина требуется: {pluginName}"
+  pvp_disabled: "&cPvP между соклановцами выключено!"
   kick_success: "&cВы исключили {player} из клана."
   kicked: "&cВы были исключены из клана."
   promote_success: "&aВы повысили {player} до {rank}."
