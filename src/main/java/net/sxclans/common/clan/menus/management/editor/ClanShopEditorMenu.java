@@ -81,10 +81,6 @@ public class ClanShopEditorMenu {
                 fileConfig.set(itemKey + ".required_level", config.defaultRequiredLevel());
                 fileConfig.set(itemKey + ".position", slotIndex);
 
-                ItemMeta meta = item.getItemMeta();
-                if (meta != null && meta.hasLore()) {
-                    fileConfig.set(itemKey + ".lore", meta.getLore());
-                }
             }
         }
 
@@ -120,12 +116,7 @@ public class ClanShopEditorMenu {
                             meta = Bukkit.getItemFactory().getItemMeta(item.getType());
                         }
 
-                        List<String> lore = new ArrayList<>();
-                        if (meta.hasLore()) {
-                            lore.addAll(meta.getLore());
-                        } else if (fileConfig.contains("items." + element + ".lore")) {
-                            lore.addAll(fileConfig.getStringList("items." + element + ".lore"));
-                        }
+                        List<String> lore = new ArrayList<>(meta.getLore());
                         boolean hasDefaultLore = false;
                         List<String> defaultLoreWithPlaceholders = new ArrayList<>();
                         for (String loreLine : config.defaultLore()) {

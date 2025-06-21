@@ -17,9 +17,17 @@ filler:
 buttons:
   send_war_request:
     display: "&aОтправить запрос на войну"
+    material: IRON_SWORD
+    slot: 10
   select_participants:
     display: "&bВыбрать участников войны"
+    material: PLAYER_HEAD
+    slot: 12
   current_wars:
     display: "&eТекущие войны"
+    material: BOOK
+    slot: 14
   war_invitations:
     display: "&eПриглашения на войну &7(Нажмите)"
+    material: PAPER
+    slot: 16

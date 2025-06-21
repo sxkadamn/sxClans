@@ -12,6 +12,7 @@ import net.sxclans.common.clan.base.FileBasedClanManager;
 import net.sxclans.common.clan.base.MySQLClanManager;
 import net.sxclans.common.clan.base.PostgreSQLClanManager;
 import net.sxclans.common.clan.models.ClanRank;
+import net.sxclans.common.clan.war.manager.WarListener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -99,6 +100,8 @@ public final class Depend extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new ControlerFights(), this);
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
+        getServer().getPluginManager().registerEvents(new WarListener(), this);
+
         BaseCommand.register(this, new UserCommands("clan"));
     }
 

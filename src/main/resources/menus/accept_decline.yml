@@ -1,0 +1,29 @@
+title: "&eВыбор действия"
+size: 3
+filler:
+  material: GRAY_STAINED_GLASS_PANE
+  slots:
+    - 0
+    - 1
+    - 9
+    - 7
+    - 8
+    - 17
+    - 25
+    - 26
+    - 18
+    - 19
+
+buttons:
+  accept:
+    display: "&aПринять запрос от {clan}"
+    material: LIME_BANNER
+    slot: 11
+  decline:
+    display: "&cОтклонить запрос от {clan}"
+    material: RED_BANNER
+    slot: 15
+
+messages:
+  accepted_war_request: "&aВы приняли запрос на войну от клана &e{clan}"
+  declined_war_request: "&cВы отклонили запрос на войну от клана &e{clan}"

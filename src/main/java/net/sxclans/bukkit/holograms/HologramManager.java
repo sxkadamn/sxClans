@@ -27,8 +27,7 @@ public class HologramManager {
     }
 
     public void registerHologram(String id, Comparator<Clan> comparator) {
-        String configPath = "holograms." + id;
-        ClanHologram hologram = new ClanHologram(plugin, id, configPath, comparator);
+        ClanHologram hologram = new ClanHologram(plugin, id, "holograms." + id, comparator);
 
         if (hologram.isEnabled()) {
             hologram.create();

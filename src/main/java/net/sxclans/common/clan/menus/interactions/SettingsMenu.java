@@ -2,6 +2,8 @@ package net.sxclans.common.clan.menus.interactions;
 
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
+import net.lielibrary.bukkit.requirements.RequirementAPI;
+import net.lielibrary.bukkit.requirements.RequirementExecute;
 import net.lielibrary.gui.buttons.Button;
 import net.sxclans.bukkit.files.FilesManagerInterface;
 import net.sxclans.common.clan.Clan;
@@ -11,7 +13,9 @@ import net.sxclans.common.clan.models.ClanRank;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.Location;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,13 +28,16 @@ public class SettingsMenu {
     private final FilesManagerInterface filesManager;
     private final AnimatedMenu menu;
     private final SettingsConfig config;
+    private final FileConfiguration fileConfig;
 
     public SettingsMenu(Player player, Clan clan, FilesManagerInterface filesManager) {
         this.player = player;
         this.clan = clan;
         this.filesManager = filesManager;
 
-        FileConfiguration fileConfig = filesManager.getMenuConfig("clan_settings");
+        fileConfig = filesManager.getMenuConfig("clan_settings");
+        RequirementAPI.loadConfig(fileConfig);
+
         this.config = new SettingsConfig(
                 fileConfig.getString("title"),
                 fileConfig.getInt("size"),
@@ -39,12 +46,11 @@ public class SettingsMenu {
                 fileConfig.getDouble("settings.member_limit_increase_cost"),
                 fileConfig.getInt("settings.max_member_limit"),
                 fileConfig.getString("messages.max_limit_reached"),
-                fileConfig.getString("messages.pvp_enabled"),
-                fileConfig.getString("messages.pvp_disabled"),
-                fileConfig.getString("messages.base_set"),
-                fileConfig.getString("messages.insufficient_funds"),
-                fileConfig.getString("messages.limit_increased"),
-                fileConfig.getString("messages.shop_editor_open"),
+                fileConfig.getStringList("buttons.pvp_toggle.commands"),
+                fileConfig.getStringList("buttons.set_base.commands"),
+                fileConfig.getStringList("buttons.increase_limit.success_commands"),
+                fileConfig.getStringList("buttons.increase_limit.error_commands"),
+                fileConfig.getStringList("buttons.shop_editor.commands"),
                 Stream.of("pvp_toggle", "set_base", "increase_limit", "shop_editor")
                         .collect(Collectors.toMap(
                                 key -> key,
@@ -56,19 +62,14 @@ public class SettingsMenu {
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.display") : null,
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.lore") : null,
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.lore") : null,
-                                        fileConfig.getString("messages." + (key.equals("pvp_toggle") ? "pvp_enabled" :
-                                                key.equals("set_base") ? "base_set" :
-                                                        key.equals("shop_editor") ? "shop_editor_open" : "limit_increased")),
-                                        key.equals("increase_limit") ? fileConfig.getString("messages.insufficient_funds") : null,
                                         key.equals("pvp_toggle") ? null : fileConfig.getString("buttons." + key + ".material"),
-                                        null,
                                         key.equals("pvp_toggle") ? null : fileConfig.getString("buttons." + key + ".display"),
                                         fileConfig.getStringList("buttons." + key + ".lore")
                                 ))),
-                Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
-                fileConfig.getIntegerList("filler.slots")
+                getMaterial(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
+                fileConfig.getIntegerList("filler.slots").stream().distinct().collect(Collectors.toList())
         );
-        this.menu = Optional.ofNullable(config)
+        this.menu = Optional.of(config)
                 .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
                         Plugin.getWithColor().hexToMinecraftColor(cfg.title()),
                         cfg.size(),
@@ -76,7 +77,7 @@ public class SettingsMenu {
                 .orElse(null);
 
         if (!clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.noPermission()));
+            executeCommandsWithPlaceholders(fileConfig, "messages.no_permission", null);
         }
     }
 
@@ -99,7 +100,7 @@ public class SettingsMenu {
         int maxLimit = config.maxMemberLimit();
 
         if (newLimit > maxLimit) {
-            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.maxLimitReached()));
+            executeCommandsWithPlaceholders(fileConfig, "messages.max_limit_reached", null);
             return;
         }
 
@@ -107,8 +108,8 @@ public class SettingsMenu {
                 .forEach(type -> {
                     ButtonConfig btnConfig = config.buttons().get(type);
                     Material material = type.equals("pvp_toggle")
-                            ? Material.valueOf(pvpEnabled ? btnConfig.disabledMaterial() : btnConfig.enabledMaterial())
-                            : Material.valueOf(btnConfig.material());
+                            ? getMaterial(pvpEnabled ? btnConfig.disabledMaterial() : btnConfig.enabledMaterial())
+                            : getMaterial(btnConfig.material());
                     String display = Plugin.getWithColor().hexToMinecraftColor(type.equals("pvp_toggle")
                             ? (pvpEnabled ? btnConfig.disabledDisplay() : btnConfig.enabledDisplay())
                             : btnConfig.display());
@@ -116,7 +117,8 @@ public class SettingsMenu {
                             ? List.of(Plugin.getWithColor().hexToMinecraftColor(pvpEnabled ? btnConfig.disabledLore() : btnConfig.enabledLore()))
                             : btnConfig.lore().stream()
                             .map(line -> Plugin.getWithColor().hexToMinecraftColor(
-                                    line.replace("%current_limit%", String.valueOf(currentLimit))
+                                    replacePlaceholders(line, null)
+                                            .replace("%current_limit%", String.valueOf(currentLimit))
                                             .replace("%new_limit%", String.valueOf(newLimit))
                                             .replace("%cost%", String.valueOf(cost))))
                             .collect(Collectors.toList());
@@ -124,42 +126,39 @@ public class SettingsMenu {
                     Button button = new Button(material)
                             .setDisplay(display)
                             .setLoreList(lore)
+                            .disableInteract(false)
                             .withListener(event -> {
                                 switch (type) {
                                     case "pvp_toggle" -> {
                                         clan.setPvpEnabled(!pvpEnabled);
                                         clan.save();
-                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(pvpEnabled ? config.pvpDisabledMessage() : config.pvpEnabledMessage()));
+                                        executeCommandsWithPlaceholders(fileConfig, "buttons.pvp_toggle.commands", null);
+                                        menu.refreshSlot(btnConfig.slot());
                                     }
                                     case "set_base" -> {
-                                        var location = player.getLocation();
+                                        Location location = player.getLocation();
                                         clan.setBaseLocation(location);
                                         clan.save();
-                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                config.baseSetMessage()
-                                                        .replace("%x%", String.valueOf(location.getBlockX()))
-                                                        .replace("%y%", String.valueOf(location.getBlockY()))
-                                                        .replace("%z%", String.valueOf(location.getBlockZ()))));
+                                        executeCommandsWithPlaceholders(fileConfig, "buttons.set_base.commands", location);
                                     }
                                     case "increase_limit" -> {
                                         VaultEconomyProvider economy = new VaultEconomyProvider();
                                         if (!economy.isAvailable() || economy.getBalance(player) < cost) {
-                                            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.insufficientFundsMessage()));
+                                            executeCommandsWithPlaceholders(fileConfig, "buttons.increase_limit.error_commands", null);
                                             return;
                                         }
                                         economy.withdraw(player, cost);
                                         clan.setMemberLimit(newLimit);
                                         clan.save();
-                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                config.limitIncreasedMessage().replace("%new_limit%", String.valueOf(newLimit))));
+                                        executeCommandsWithPlaceholders(fileConfig, "buttons.increase_limit.success_commands", null);
                                     }
                                     case "shop_editor" -> {
-                                        if (!clan.hasPermission(player.getName(), ClanRank.LEADER)) {
-                                            player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.noPermission()));
+                                        if (!player.isOp()) {
+                                            executeCommandsWithPlaceholders(fileConfig, "messages.no_permission", null);
                                             return;
                                         }
                                         new ClanShopEditorMenu(filesManager).openItemsMenu(player);
-                                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.shopEditorOpenMessage()));
+                                        executeCommandsWithPlaceholders(fileConfig, "buttons.shop_editor.commands", null);
                                     }
                                 }
                             });
@@ -170,6 +169,48 @@ public class SettingsMenu {
         menu.open(player);
     }
 
+    private void executeCommandsWithPlaceholders(FileConfiguration config, String path, Location location) {
+        List<String> commands = config.getStringList(path);
+        if (commands.isEmpty()) {
+            String singleCommand = config.getString(path);
+            if (singleCommand != null && !singleCommand.isEmpty()) {
+                commands = List.of(singleCommand);
+            }
+        }
+        if (commands.isEmpty()) return;
+
+        List<String> processedCommands = commands.stream()
+                .map(command -> replacePlaceholders(command, location))
+                .collect(Collectors.toList());
+
+        RequirementExecute.execute(processedCommands, player);
+    }
+
+    private String replacePlaceholders(String input, Location location) {
+        String result = input
+                .replace("{clan_name}", clan.getName())
+                .replace("{player_name}", player.getName())
+                .replace("{clan_pvp_status}", clan.isPvpEnabled() ? "Включено" : "Выключено")
+                .replace("{new_limit}", String.valueOf(clan.getMemberLimit() + config.memberLimitIncreaseStep()))
+                .replace("{clan_member_limit}", String.valueOf(clan.getMemberLimit()))
+                .replace("{clan_members}", String.valueOf(clan.getMembers().size()));
+        if (location != null) {
+            result = result
+                    .replace("%x%", String.valueOf(location.getBlockX()))
+                    .replace("%y%", String.valueOf(location.getBlockY()))
+                    .replace("%z%", String.valueOf(location.getBlockZ()));
+        }
+        return Plugin.getWithColor().hexToMinecraftColor(result);
+    }
+
+    private Material getMaterial(String materialName) {
+        try {
+            return Material.valueOf(materialName.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return Material.BARRIER;
+        }
+    }
+
     private record SettingsConfig(
             String title,
             int size,
@@ -178,21 +219,23 @@ public class SettingsMenu {
             double memberLimitIncreaseCost,
             int maxMemberLimit,
             String maxLimitReached,
-            String pvpEnabledMessage,
-            String pvpDisabledMessage,
-            String baseSetMessage,
-            String insufficientFundsMessage,
-            String limitIncreasedMessage,
-            String shopEditorOpenMessage,
+            List<String> pvpToggleCommands,
+            List<String> setBaseCommands,
+            List<String> increaseLimitSuccessCommands,
+            List<String> increaseLimitErrorCommands,
+            List<String> shopEditorCommands,
             Map<String, ButtonConfig> buttons,
             Material fillerMaterial,
             List<Integer> fillerSlots
     ) {
         public SettingsConfig {
-            if (title == null || noPermission == null || maxLimitReached == null || pvpEnabledMessage == null ||
-                    pvpDisabledMessage == null || baseSetMessage == null || insufficientFundsMessage == null ||
-                    limitIncreasedMessage == null || shopEditorOpenMessage == null || fillerMaterial == null || fillerSlots == null) {
+            if (title == null || noPermission == null || maxLimitReached == null || pvpToggleCommands == null ||
+                    setBaseCommands == null || increaseLimitSuccessCommands == null || increaseLimitErrorCommands == null ||
+                    shopEditorCommands == null || fillerMaterial == null || fillerSlots == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in clan_settings.yml");
+            }
+            if (size < 1 || size > 6) {
+                throw new IllegalArgumentException("Menu size must be between 1 and 6 rows");
             }
         }
     }
@@ -205,21 +248,14 @@ public class SettingsMenu {
             String disabledDisplay,
             String enabledLore,
             String disabledLore,
-            String successMessage,
-            String errorMessage,
             String material,
-            Integer slotOverride,
             String display,
             List<String> lore
     ) {
         public ButtonConfig {
-            if (slot == 0 && (slotOverride == null || slotOverride == 0)) {
-                throw new IllegalArgumentException("Slot is required for button configuration");
+            if (slot < 0) {
+                throw new IllegalArgumentException("Slot must be non-negative for button configuration");
             }
-        }
-
-        public int slot() {
-            return slotOverride != null ? slotOverride : slot;
         }
     }
 }

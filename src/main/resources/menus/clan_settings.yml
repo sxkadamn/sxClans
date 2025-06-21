@@ -1,63 +1,61 @@
 title: "&6Настройки клана"
 size: 3
-
+filler:
+  material: GRAY_STAINED_GLASS_PANE
+  slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
 messages:
-  no_permission: "&cУ вас нет прав для управления настройками клана!"
-  max_limit_reached: "&cДостигнут максимальный лимит участников!"
-  pvp_enabled: "&aPvP включено!"
-  pvp_disabled: "&cPvP выключено!"
-  base_set: "&aБаза установлена на координаты: %x%, %y%, %z%!"
-  insufficient_funds: "&cНедостаточно средств для увеличения лимита!"
-  limit_increased: "&aЛимит участников увеличен до %new_limit%!"
-  shop_editor_open: "&aОткрыт редактор магазина клана!"
-
+  no_permission: "[MESSAGE] &cУ вас нет прав для управления настройками клана!"
+  max_limit_reached: "[MESSAGE] &cДостигнут максимальный лимит участников клана!"
 settings:
   member_limit_increase_step: 5
   member_limit_increase_cost: 1000.0
   max_member_limit: 50
-
 buttons:
   pvp_toggle:
     enabled:
+      material: LIME_DYE
       slot: 10
-      material: "DIAMOND_SWORD"
-      display: "&aPvP: Включено"
-      lore: "&7Нажмите, чтобы выключить PvP"
+      display: "&aВыключить PvP"
+      lore: "&7Нажмите, чтобы выключить PvP в клане."
     disabled:
+      material: RED_DYE
       slot: 10
-      material: "IRON_SWORD"
-      display: "&cPvP: Выключено"
-      lore: "&7Нажмите, чтобы включить PvP"
+      display: "&cВключить PvP"
+      lore: "&7Нажмите, чтобы включить PvP в клане."
+    commands:
+      - "[MESSAGE] &aPvP в клане теперь {clan_pvp_status}!"
+      - "[ACTION_BAR] &ePvP: {clan_pvp_status}!"
+      - "[BROADCAST] &6Клан {clan_name} изменил PvP на {clan_pvp_status}!"
   set_base:
+    material: ENDER_PEARL
     slot: 12
-    material: "ENDER_PEARL"
-    display: "&bУстановить базу"
-    lore: "&7Установите точку базы клана на вашей текущей позиции"
+    display: "&aУстановить базу"
+    lore:
+      - "&7Установите текущую позицию как базу клана."
+      - "&7Текущая база: %x%, %y%, %z%"
+    commands:
+      - "[MESSAGE] &aБаза клана установлена на x:%x%, y:%y%, z:%z%!"
+      - "[ACTION_BAR] &eНовая база установлена!"
+      - "[CONSOLE] effect give {player_name} minecraft:speed 10 1"
   increase_limit:
+    material: BOOK
     slot: 14
-    material: "EMERALD"
-    display: "&eУвеличить лимит участников"
+    display: "&aУвеличить лимит"
     lore:
       - "&7Текущий лимит: %current_limit%"
       - "&7Новый лимит: %new_limit%"
       - "&7Стоимость: %cost%"
+    success_commands:
+      - "[ACTION_BAR] &eЛимит увеличен!"
+    error_commands:
+      - "[MESSAGE] &cНедостаточно средств для увеличения лимита!"
+      - "[ACTION_BAR] &cПроверьте баланс!"
   shop_editor:
+    material: ANVIL
     slot: 16
-    material: "CHEST"
-    display: "&6Редактор магазина"
+    display: "&aРедактор магазина"
     lore:
-      - "&7Нажмите, чтобы изменить предметы в магазине клана"
-
-filler:
-  material: GRAY_STAINED_GLASS_PANE
-  slots:
-    - 0
-    - 1
-    - 9
-    - 7
-    - 8
-    - 17
-    - 25
-    - 26
-    - 18
-    - 19
+      - "&7Откройте редактор кланового магазина."
+    commands:
+      - "[MESSAGE] &aОткрыт редактор магазина клана!"
+      - "[ACTION_BAR] &eРедактируйте товары!"

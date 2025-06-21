@@ -1,7 +1,7 @@
 title: "&cВыбор противника"
 size: 3
 filler:
-  material: "GRAY_STAINED_GLASS_PANE"
+  material: GRAY_STAINED_GLASS_PANE
   slots:
     - 0
     - 1
@@ -14,5 +14,10 @@ filler:
     - 18
     - 19
 
+button_slots: [10, 11, 12, 13, 14, 15, 16]
+
 button:
   display: "&cВыбрать клан {clan}"
+
+messages:
+  war_request_sent: "&aЗапрос на войну отправлен клану &e{clan}"

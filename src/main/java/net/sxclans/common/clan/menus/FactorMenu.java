@@ -2,10 +2,11 @@ package net.sxclans.common.clan.menus;
 
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
+import net.lielibrary.bukkit.requirements.RequirementAPI;
+import net.lielibrary.bukkit.requirements.RequirementExecute;
 import net.lielibrary.gui.buttons.Button;
 import net.sxclans.bukkit.Depend;
 import net.sxclans.bukkit.files.FilesManagerInterface;
-import net.sxclans.common.Utility;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.menus.economy.DepositMenu;
 import net.sxclans.common.clan.menus.economy.WithdrawMenu;
@@ -19,6 +20,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class FactorMenu {
     private final Player player;
@@ -29,6 +31,7 @@ public class FactorMenu {
         this.player = player;
         this.clan = Depend.getClanManage().getMembersClan(player.getName());
         this.filesManager = filesManager;
+        RequirementAPI.loadConfig(filesManager.getMenuConfig("main"));
     }
 
     public void open() {
@@ -38,7 +41,7 @@ public class FactorMenu {
         AnimatedMenu menu = Plugin.getMenuManager().createMenuFromConfig(menuName, menuSize, player);
 
         Material fillerMaterial = getMaterial(config, "menu.filler.material");
-        List<Integer> fillerSlots = config.getIntegerList("menu.filler.slots");
+        List<Integer> fillerSlots = config.getIntegerList("menu.filler.slots").stream().distinct().toList();
         for (int slot : fillerSlots) {
             if (slot >= 0 && slot < menuSize * 9) {
                 Button fillerButton = new Button(fillerMaterial)
@@ -64,11 +67,11 @@ public class FactorMenu {
         leaveButton.withListener(event -> {
             if (isLeader) {
                 Depend.getClanManage().removeClan(clan);
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.leave.leader_message")));
+                executeCommandsWithPlaceholders(config, "menu.buttons.leave.leader_commands");
             } else {
+                Depend.getClanManage().removeMember(clan, player.getName());
                 clan.removeMember(player.getName());
-                Utility.playConfiguredSounds(player, "sounds.clan_left");
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.leave.member_message")));
+                executeCommandsWithPlaceholders(config, "menu.buttons.leave.member_commands");
             }
             player.closeInventory();
         });
@@ -120,12 +123,11 @@ public class FactorMenu {
         teleportButton.withListener(event -> {
             if (clan.getBaseLocation() != null) {
                 player.teleport(clan.getBaseLocation());
-                Utility.playConfiguredSounds(player, "sounds.clan_teleport");
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.teleport_base.success_message")));
-                player.closeInventory();
+                executeCommandsWithPlaceholders(config, "menu.buttons.teleport_base.success_commands");
             } else {
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.teleport_base.no_base_message")));
+                executeCommandsWithPlaceholders(config, "menu.buttons.teleport_base.no_base_commands");
             }
+            player.closeInventory();
         });
         menu.setSlot(config.getInt("menu.buttons.teleport_base.slot"), teleportButton);
 
@@ -134,14 +136,42 @@ public class FactorMenu {
         warButton.disableInteract(false);
         warButton.withListener(event -> {
             if (clan.isInWar()) {
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&cВаш клан уже участвует в войне."));
-                return;
+                executeCommandsWithPlaceholders(config, "menu.buttons.war.already_in_war_commands");
+            } else {
+                new WarMenu(player, filesManager).open();
             }
-            new WarMenu(player, filesManager).open();
         });
         menu.setSlot(config.getInt("menu.buttons.war.slot"), warButton);
 
         menu.open(player);
+    }
+
+    private void executeCommandsWithPlaceholders(FileConfiguration config, String path) {
+        List<String> commands = config.getStringList(path);
+        if (commands.isEmpty()) return;
+
+        List<String> processedCommands = commands.stream()
+                .map(this::replacePlaceholders)
+                .collect(Collectors.toList());
+
+        RequirementExecute.execute(processedCommands, player);
+    }
+
+    private String replacePlaceholders(String input) {
+        return Plugin.getWithColor().hexToMinecraftColor(input
+                .replace("{clan_name}", clan.getName())
+                .replace("{player_name}", player.getName())
+                .replace("{yours_rank}", clan.getRank(player.getName()).getDisplayName())
+                .replace("{clan_lvl}", String.valueOf(clan.getLevel()))
+                .replace("{clan_members}", String.valueOf(clan.getMembers().size()))
+                .replace("{clan_moderators}", String.valueOf(clan.countMembersByRank(ClanRank.MODERATOR)))
+                .replace("{clan_leaders}", String.valueOf(clan.countMembersByRank(ClanRank.LEADER)))
+                .replace("{clan_co_leaders}", String.valueOf(clan.countMembersByRank(ClanRank.CO_LEADER)))
+                .replace("{clan_balance}", String.valueOf(clan.getBank()))
+                .replace("{clan_balance_rub}", String.valueOf(clan.getRubles()))
+                .replace("{clan_pvp_status}", clan.isPvpEnabled() ? "Включено" : "Выключено")
+                .replace("{clan_member_limit}", String.valueOf(clan.getMemberLimit()))
+                .replace("{clan_war_status}", clan.isInWar() ? "Участвует в войне" : "Мир"));
     }
 
     private Material getMaterial(FileConfiguration config, String path) {
@@ -154,20 +184,7 @@ public class FactorMenu {
 
     private List<String> processLore(List<String> lore) {
         return lore.stream()
-                .map(line -> Plugin.getWithColor().hexToMinecraftColor(line
-                        .replace("{clan_name}", clan.getName())
-                        .replace("{yours_rank}", clan.getRank(player.getName()).getDisplayName())
-                        .replace("{clan_lvl}", String.valueOf(clan.getLevel()))
-                        .replace("{clan_members}", String.valueOf(clan.getMembers().size()))
-                        .replace("{clan_moderators}", String.valueOf(clan.countMembersByRank(ClanRank.MODERATOR)))
-                        .replace("{clan_leaders}", String.valueOf(clan.countMembersByRank(ClanRank.LEADER)))
-                        .replace("{clan_co_leaders}", String.valueOf(clan.countMembersByRank(ClanRank.CO_LEADER)))
-                        .replace("{clan_balance}", String.valueOf(clan.getBank()))
-                        .replace("{clan_balance_rub}", String.valueOf(clan.getRubles()))
-                        .replace("{clan_pvp_status}", clan.isPvpEnabled() ? "&aВключено" : "&cВыключено")
-                        .replace("{clan_member_limit}", String.valueOf(clan.getMemberLimit()))
-                        .replace("{clan_war_status}", clan.isInWar() ? "&cУчаствует в войне" : "&aМир")))
-                .toList();
+                .map(this::replacePlaceholders)
+                .collect(Collectors.toList());
     }
-
 }

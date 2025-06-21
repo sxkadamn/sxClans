@@ -1,7 +1,7 @@
 name: "&bВыбор участников войны"
 size: 3
 filler:
-  material: "GRAY_STAINED_GLASS_PANE"
+  material: GRAY_STAINED_GLASS_PANE
   slots:
     - 0
     - 1
@@ -13,6 +13,15 @@ filler:
     - 26
     - 18
     - 19
+button_slots: [10, 11, 12, 13, 14, 15, 16]
+
+max_participants: 5
 
 button:
-  display: "&aДобавить {player} в войну"
+  display_add: "&aДобавить {player} в войну &7(Не участвует)"
+  display_remove: "&cУдалить {player} из войны &7(Участвует)"
+
+messages:
+  added_to_war: "&aИгрок &e{player} &aдобавлен в участники войны."
+  removed_from_war: "&cИгрок &e{player} &cудален из участников войны."
+  max_participants_reached: "&cДостигнут лимит участников войны ({max})."

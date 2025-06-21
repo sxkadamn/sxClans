@@ -9,10 +9,10 @@ import net.sxclans.common.clan.Clan;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class WarInvitationsMenu {
 
@@ -29,17 +29,18 @@ public class WarInvitationsMenu {
                 fileConfig.getInt("size"),
                 Material.valueOf(fileConfig.getString("filler.material")),
                 fileConfig.getIntegerList("filler.slots"),
+                fileConfig.getIntegerList("button_slots"),
+                Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("button.clan_request.display")),
+                Material.valueOf(fileConfig.getString("button.clan_request.material")),
                 Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("button.accept.display")),
                 Material.valueOf(fileConfig.getString("button.accept.material")),
                 Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("button.decline.display")),
                 Material.valueOf(fileConfig.getString("button.decline.material"))
         );
 
-        this.menu = Optional.of(config)
-                .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
-                        cfg.name(),
-                        cfg.size(), player))
-                .orElse(null);
+        this.menu = Plugin.getMenuManager().createMenuFromConfig(
+                config.name(),
+                config.size(), player);
     }
 
     public void open() {
@@ -56,7 +57,9 @@ public class WarInvitationsMenu {
         Clan playerClan = Depend.getClanManage().getMembersClan(player.getName());
         Map<String, String> warRequests = Depend.getClanManage().getWarRequests();
 
-        int slot = 0;
+        List<Integer> buttonSlots = config.buttonSlots();
+        int index = 0;
+
         for (Map.Entry<String, String> entry : warRequests.entrySet()) {
             String receiverClanName = entry.getKey();
             String senderClanName = entry.getValue();
@@ -65,27 +68,26 @@ public class WarInvitationsMenu {
                 continue;
             }
 
-            String acceptDisplay = config.acceptDisplay().replace("{clan}", senderClanName);
-            menu.setSlot(slot, new Button(config.acceptMaterial())
-                    .setDisplay(acceptDisplay)
+            if (index >= buttonSlots.size()) {
+                break;
+            }
+
+            int slot = buttonSlots.get(index);
+
+            String clanRequestDisplay = config.clanRequestDisplay().replace("{clan}", senderClanName);
+            menu.setSlot(slot, new Button(config.clanRequestMaterial())
+                    .setDisplay(clanRequestDisplay)
+                    .applyMeta(meta -> {
+                        if (meta instanceof SkullMeta skullMeta) {
+                            skullMeta.setOwningPlayer(Depend.getInstance().getServer().getOfflinePlayer(senderClanName));
+                        }
+                        return meta;
+                    })
                     .withListener(event -> {
-                        Depend.getClanManage().acceptWarRequest(receiverClanName);
-                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&aВы приняли запрос на войну от клана &e" + senderClanName));
-                        player.closeInventory();
+                        new AcceptDeclineMenu(player, senderClanName, receiverClanName, Depend.getInstance().getFilesManager()).open();
                     }));
 
-            slot++;
-
-            String declineDisplay = config.declineDisplay().replace("{clan}", senderClanName);
-            menu.setSlot(slot, new Button(config.declineMaterial())
-                    .setDisplay(declineDisplay)
-                    .withListener(event -> {
-                        Depend.getClanManage().cancelWarRequest(receiverClanName);
-                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&cВы отклонили запрос на войну от клана &e" + senderClanName));
-                        player.closeInventory();
-                    }));
-
-            slot++;
+            index++;
         }
 
         menu.open(player);
@@ -96,6 +98,9 @@ public class WarInvitationsMenu {
             int size,
             Material fillerMaterial,
             List<Integer> fillerSlots,
+            List<Integer> buttonSlots,
+            String clanRequestDisplay,
+            Material clanRequestMaterial,
             String acceptDisplay,
             Material acceptMaterial,
             String declineDisplay,
@@ -103,6 +108,8 @@ public class WarInvitationsMenu {
     ) {
         public WarInvitationsConfig {
             if (name == null || size <= 0 || fillerMaterial == null || fillerSlots == null || fillerSlots.isEmpty() ||
+                    buttonSlots == null || buttonSlots.isEmpty() || // Проверка новых слотов
+                    clanRequestDisplay == null || clanRequestMaterial == null ||
                     acceptDisplay == null || acceptMaterial == null || declineDisplay == null || declineMaterial == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in war_invitations.yml");
             }

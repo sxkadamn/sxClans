@@ -12,7 +12,6 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public class SelectEnemyClanMenu {
 
@@ -29,14 +28,14 @@ public class SelectEnemyClanMenu {
                 fileConfig.getInt("size"),
                 Material.valueOf(fileConfig.getString("filler.material")),
                 fileConfig.getIntegerList("filler.slots"),
-                Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("button.display"))
+                fileConfig.getIntegerList("button_slots"),
+                Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("button.display")),
+                Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("messages.war_request_sent"))
         );
 
-        this.menu = Optional.of(config)
-                .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
-                        cfg.name(),
-                        cfg.size(), player))
-                .orElse(null);
+        this.menu = Plugin.getMenuManager().createMenuFromConfig(
+                config.name(),
+                config.size(), player);
     }
 
     public void open() {
@@ -51,12 +50,18 @@ public class SelectEnemyClanMenu {
         }
 
         Map<String, Clan> clanMap = Depend.getClanManage().getClans();
-        int slot = 0;
+        List<Integer> buttonSlots = config.buttonSlots();
+        int index = 0;
 
         for (Clan clan : clanMap.values()) {
             if (clan.getName().equals(Depend.getClanManage().getMembersClan(player.getName()).getName())) {
                 continue;
             }
+            if (index >= buttonSlots.size()) {
+                break;
+            }
+
+            int slot = buttonSlots.get(index);
 
             String displayText = config.buttonDisplay().replace("{clan}", clan.getName());
 
@@ -64,9 +69,11 @@ public class SelectEnemyClanMenu {
                     .setDisplay(displayText)
                     .withListener(event -> {
                         Depend.getClanManage().getMembersClan(player.getName()).sendWarRequest(clan);
-                        player.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&aЗапрос на войну отправлен клану &e" + clan.getName()));
+                        String message = config.warRequestSentMessage().replace("{clan}", clan.getName());
+                        player.sendMessage(message);
                     }));
-            slot++;
+
+            index++;
         }
 
         menu.open(player);
@@ -77,10 +84,13 @@ public class SelectEnemyClanMenu {
             int size,
             Material fillerMaterial,
             List<Integer> fillerSlots,
-            String buttonDisplay
+            List<Integer> buttonSlots,
+            String buttonDisplay,
+            String warRequestSentMessage
     ) {
         public EnemyClanConfig {
-            if (name == null || size <= 0 || fillerMaterial == null || fillerSlots == null || fillerSlots.isEmpty() || buttonDisplay == null) {
+            if (name == null || size <= 0 || fillerMaterial == null || fillerSlots == null || fillerSlots.isEmpty() ||
+                    buttonSlots == null || buttonSlots.isEmpty() || buttonDisplay == null || warRequestSentMessage == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in enemy_clan.yml");
             }
         }

@@ -1,6 +1,8 @@
 package net.sxclans.common.clan.base;
 
 import net.sxclans.common.clan.Clan;
+import net.sxclans.common.clan.war.manager.WarManager;
+import org.bukkit.entity.Player;
 
 import java.util.Map;
 
@@ -20,6 +22,8 @@ public interface ClanBaseManager {
 
     Clan getOwnersClan(String paramString);
 
+    void removeMember(Clan paramClan, String paramString);
+
     Clan getMembersClan(String paramString);
 
     void addWarRequest(String senderClanName, String receiverClanName);
@@ -29,4 +33,12 @@ public interface ClanBaseManager {
     void cancelWarRequest(String receiverClanName);
 
     Map<String, String> getWarRequests();
+
+    Map<String, WarManager> getActiveWars();
+
+    WarManager getActiveWarManager(Player playerUUID);
+
+    void setActiveWarManager(Clan clanA, Clan clanB, WarManager warManager);
+
+    void clearWar(Clan clanA, Clan clanB);
 }

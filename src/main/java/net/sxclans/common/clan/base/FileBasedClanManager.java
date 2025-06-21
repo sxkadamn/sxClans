@@ -1,6 +1,9 @@
 package net.sxclans.common.clan.base;
 
+import net.sxclans.bukkit.Depend;
 import net.sxclans.common.clan.Clan;
+import net.sxclans.common.clan.war.manager.WarManager;
+import org.bukkit.entity.Player;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,8 +23,8 @@ public class FileBasedClanManager implements ClanBaseManager {
     private final Map<String, String> playerToClan = new ConcurrentHashMap<>();
     private final ReentrantLock saveLock = new ReentrantLock();
 
-    // Новое поле для хранения запросов на войну
     private final Map<String, String> warRequests = new ConcurrentHashMap<>();
+    private final Map<String, WarManager> activeWars = new ConcurrentHashMap<>();
 
     public FileBasedClanManager(File directory) {
         this.directory = Objects.requireNonNull(directory, "Directory cannot be null");
@@ -115,6 +118,17 @@ public class FileBasedClanManager implements ClanBaseManager {
     }
 
     @Override
+    public void removeMember(Clan clan, String member) {
+        saveLock.lock();
+        try {
+            playerToClan.remove(clan.getMember(member));
+        } catch (Exception ignored) {
+        } finally {
+            saveLock.unlock();
+        }
+    }
+
+    @Override
     public Clan getClan(String name) {
         return clans.get(name);
     }
@@ -186,35 +200,52 @@ public class FileBasedClanManager implements ClanBaseManager {
         warRequests.put(receiverClanName, senderClanName);
     }
 
+    @Override
     public void acceptWarRequest(String receiverClanName) {
         String senderClanName = warRequests.get(receiverClanName);
-        if (senderClanName == null) {
-            return;
-        }
+        if (senderClanName == null) return;
 
         Clan senderClan = clans.get(senderClanName);
         Clan receiverClan = clans.get(receiverClanName);
 
-        if (senderClan == null || receiverClan == null) {
-            return;
-        }
+        if (senderClan == null || receiverClan == null) return;
+
+        WarManager warManager = new WarManager(senderClan, receiverClan);
+        setActiveWarManager(senderClan, receiverClan, warManager);
+        warManager.startWarCountdown();
 
         senderClan.acceptWarRequest(receiverClan);
-        receiverClan.acceptWarRequest(senderClan);
 
         warRequests.remove(receiverClanName);
-
     }
 
+    @Override
     public void cancelWarRequest(String receiverClanName) {
-        String senderClanName = warRequests.remove(receiverClanName);
-        if (senderClanName == null) {
-            return;
-        }
-
+        warRequests.remove(receiverClanName);
     }
 
+    @Override
     public Map<String, String> getWarRequests() {
         return new HashMap<>(warRequests);
+    }
+
+    public Map<String, WarManager> getActiveWars() {
+        return new HashMap<>(activeWars);
+    }
+
+    public void setActiveWarManager(Clan clanA, Clan clanB, WarManager warManager) {
+        activeWars.entrySet().removeIf(entry -> entry.getValue() == warManager);
+
+        clanA.getWarParticipants().forEach(p -> activeWars.put(p, warManager));
+        clanB.getWarParticipants().forEach(p -> activeWars.put(p, warManager));
+    }
+
+    public WarManager getActiveWarManager(Player player) {
+        return activeWars.get(player.getName());
+    }
+
+    public void clearWar(Clan clanA, Clan clanB) {
+        activeWars.remove(clanA.getName());
+        activeWars.remove(clanB.getName());
     }
 }

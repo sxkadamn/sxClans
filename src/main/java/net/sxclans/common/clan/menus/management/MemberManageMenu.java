@@ -75,45 +75,53 @@ public class MemberManageMenu {
             }
         }
 
-        Stream.of(
-                Map.entry(config.kickButton().withSlot(config.kickSlot()), (Consumer<InventoryClickEvent>) event -> {
-                    clan.removeMember(target.getName());
-                    clan.getMemberRanks().remove(target.getName());
-                    moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                            config.kickSuccess().replace("{player}", target.getName())));
-                    Optional.ofNullable(target.getPlayer())
-                            .filter(Player::isOnline)
-                            .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                    config.kicked())));
-                    clan.save();
-                    menu.refreshItems();
-                    moderator.closeInventory();
-                }),
-                Map.entry(config.promoteButton().withSlot(config.promoteSlot()), (Consumer<InventoryClickEvent>) event -> {
-                    ClanRank currentRank = clan.getRank(target.getName());
-                    ClanRank nextRank = currentRank.getNextRank();
-                    Optional.ofNullable(nextRank)
-                            .ifPresentOrElse(
-                                    rank -> {
-                                        clan.setRank(target.getName(), rank);
-                                        moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                config.promoteSuccess()
-                                                        .replace("{player}", target.getName())
-                                                        .replace("{rank}", rank.getDisplayName())));
-                                        Optional.ofNullable(target.getPlayer())
-                                                .filter(Player::isOnline)
-                                                .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                        config.promoted().replace("{rank}", rank.getDisplayName()))));
-                                        clan.save();
-                                    },
-                                    () -> moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.maxRank()))
-                            );
-                    moderator.closeInventory();
+        menu.setSlot(
+                config.kickSlot(),
+                config.kickButton().withSlot(config.kickSlot()).toButton(new ButtonListener() {
+                    @Override
+                    public void execute(InventoryClickEvent event) {
+                        clan.removeMember(target.getName());
+                        clan.getMemberRanks().remove(target.getName());
+                        moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                config.kickSuccess().replace("{player}", target.getName())));
+                        Optional.ofNullable(target.getPlayer())
+                                .filter(Player::isOnline)
+                                .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                        config.kicked())));
+                        clan.save();
+                        menu.refreshItems();
+                        moderator.closeInventory();
+                    }
                 })
-        ).forEach(entry -> menu.setSlot(
-                entry.getKey().slot(),
-                entry.getKey().toButton(entry.getValue())
-        ));
+        );
+
+        menu.setSlot(
+                config.promoteSlot(),
+                config.promoteButton().withSlot(config.promoteSlot()).toButton(new ButtonListener() {
+                    @Override
+                    public void execute(InventoryClickEvent event) {
+                        ClanRank currentRank = clan.getRank(target.getName());
+                        ClanRank nextRank = currentRank.getNextRank();
+                        Optional.ofNullable(nextRank)
+                                .ifPresentOrElse(
+                                        rank -> {
+                                            clan.setRank(target.getName(), rank);
+                                            moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                                    config.promoteSuccess()
+                                                            .replace("{player}", target.getName())
+                                                            .replace("{rank}", rank.getDisplayName())));
+                                            Optional.ofNullable(target.getPlayer())
+                                                    .filter(Player::isOnline)
+                                                    .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                                            config.promoted().replace("{rank}", rank.getDisplayName()))));
+                                            clan.save();
+                                        },
+                                        () -> moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.maxRank()))
+                                );
+                        moderator.closeInventory();
+                    }
+                })
+        );
 
         menu.open(moderator);
     }
@@ -134,11 +142,11 @@ public class MemberManageMenu {
             }
         }
 
-        public Button toButton(Consumer<InventoryClickEvent> listener) {
+        public Button toButton(ButtonListener listener) {
             return new Button(material)
                     .setDisplay(Plugin.getWithColor().hexToMinecraftColor(display))
                     .setLore(Plugin.getWithColor().hexToMinecraftColor(lore))
-                    .withListener((ButtonListener) listener);
+                    .withListener(listener);
         }
 
         public ButtonConfig withSlot(int slot) {

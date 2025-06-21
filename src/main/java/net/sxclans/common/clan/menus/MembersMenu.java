@@ -20,8 +20,6 @@ import org.bukkit.inventory.meta.SkullMeta;
 import java.util.List;
 import java.util.Map;
 
-import java.util.Objects;
-import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
 public class MembersMenu {
@@ -44,6 +42,7 @@ public class MembersMenu {
                 fileConfig.getString("member_button.online"),
                 fileConfig.getString("online_status.online"),
                 fileConfig.getString("online_status.offline"),
+                fileConfig.getIntegerList("button_slots"),
                 Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
                 fileConfig.getIntegerList("filler.slots")
         );
@@ -69,9 +68,10 @@ public class MembersMenu {
 
         boolean hasPermission = clan.hasPermission(player.getName(), ClanRank.MODERATOR);
 
-        IntStream.range(0, clan.getMembers().size())
-                .mapToObj(slot -> createButton(slot, clan.getMembers().get(slot), hasPermission))
-                .filter(Objects::nonNull)
+        List<Integer> slots = IntStream.rangeClosed(11, 36).boxed().toList();
+        IntStream.range(0, Math.min(slots.size(), clan.getMembers().size()))
+                .mapToObj(slot ->
+                        createButton(slots.get(slot), clan.getMembers().get(slot), hasPermission))
                 .forEach(entry -> menu.setSlot(entry.getKey(), entry.getValue()));
         menu.refreshItems();
 
@@ -79,8 +79,6 @@ public class MembersMenu {
     }
 
     private Map.Entry<Integer, Button> createButton(int slot, String memberName, boolean hasPermission) {
-        if (memberName.equals(player.getName())) return null;
-
         OfflinePlayer target = Bukkit.getOfflinePlayer(memberName);
         ClanRank rank = clan.getRank(memberName);
 
@@ -89,16 +87,23 @@ public class MembersMenu {
                 Material.PLAYER_HEAD,
                 config.display().replace("{player}", memberName),
                 config.rank().replace("{rank}", rank.getDisplayName()),
-                config.online().replace("{status}", target.isOnline() ? config.onlineStatus() : config.offlineStatus())
+                config.online().replace("{status}",
+                        target.isOnline()
+                                ? config.onlineStatus()
+                                : config.offlineStatus())
         );
 
-        Consumer<InventoryClickEvent> listener = hasPermission
-                ? event -> {
-            if (event.isLeftClick()) {
-                new MemberManageMenu(player, target, clan, filesManager).open();
-            }
+        ButtonListener listener = null;
+        if (hasPermission) {
+            listener = new ButtonListener() {
+                @Override
+                public void execute(InventoryClickEvent event) {
+                    if (event.isLeftClick()) {
+                        new MemberManageMenu(player, target, clan, filesManager).open();
+                    }
+                }
+            };
         }
-                : null;
 
         return Map.entry(slot, buttonConfig.toButton(listener));
     }
@@ -111,6 +116,7 @@ public class MembersMenu {
             String online,
             String onlineStatus,
             String offlineStatus,
+            List<Integer> buttonSlots,
             Material fillerMaterial,
             List<Integer> fillerSlots
     ) {
@@ -135,9 +141,8 @@ public class MembersMenu {
             }
         }
 
-        public Button toButton(Consumer<InventoryClickEvent> listener) {
+        public Button toButton(ButtonListener listener) {
             Button button = new Button(material)
-                    .disableInteract(true)
                     .setDisplay(Plugin.getWithColor().hexToMinecraftColor(display))
                     .setLore(
                             Plugin.getWithColor().hexToMinecraftColor(rankLore),
@@ -145,13 +150,20 @@ public class MembersMenu {
                     )
                     .applyMeta(meta -> {
                         if (meta instanceof SkullMeta skullMeta) {
-                            skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(display.split(" ")[1]));
+                            String playerName;
+                            try {
+                                String[] parts = display.split(" ");
+                                playerName = (parts.length > 1) ? parts[1] : parts[0];
+                            } catch (Exception e) {
+                                playerName = display;
+                            }
+                            skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(playerName));
                         }
                         return meta;
                     });
 
             if (listener != null) {
-                button.withListener((ButtonListener) listener);
+                button.withListener(listener);
             }
 
             return button;

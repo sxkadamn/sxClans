@@ -6,6 +6,7 @@ import net.sxclans.common.clan.models.ClanRank;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 
 import java.io.*;
 import java.util.*;
@@ -106,8 +107,17 @@ public class Clan implements Serializable {
     public void removeMember(String playerName) {
         members.remove(playerName);
         memberRanks.remove(playerName);
+
         save();
-        Depend.getClanManage().saveClan(this);
+    }
+
+    public String getMember(String playerName) {
+        for (String member : members) {
+            if (member.equalsIgnoreCase(playerName)) {
+                return member;
+            }
+        }
+        return null;
     }
 
     public void setRank(String playerName, ClanRank rank) {
@@ -125,11 +135,16 @@ public class Clan implements Serializable {
     public boolean hasPermission(String playerName, ClanRank requiredRank) {
         ClanRank playerRank = getMemberRank(playerName);
         if (playerRank == null) return false;
-        return playerRank.ordinal() <= requiredRank.ordinal();
+        return playerRank.getPower() >= requiredRank.getPower();
     }
 
-    public ClanRank getMemberRank(String playerName) {
-        return memberRanks.getOrDefault(playerName, ClanRank.MEMBER);
+    public ClanRank getMemberRank(String name) {
+        for (Map.Entry<String, ClanRank> entry : memberRanks.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(name)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     public long countMembersByRank(ClanRank rank) {
@@ -151,9 +166,24 @@ public class Clan implements Serializable {
             save();
         }
     }
-
     public double getBank() {
         return bank;
+    }
+
+    public void setBank(double bank) {
+        this.bank = bank;
+    }
+
+    public void setRubles(double rubles) {
+        this.rubles = rubles;
+    }
+
+    public void setLevel(int level) {
+        this.level = level;
+    }
+
+    public void setWarScore(int warScore) {
+        this.warScore = warScore;
     }
 
     public void addRubles(double amount) {
@@ -228,7 +258,6 @@ public class Clan implements Serializable {
         enemyClan.setInWar(true);
         this.enemyClanName = enemyClan.getName();
         enemyClan.setEnemyClanName(this.name);
-        Depend.getInstance().getLogger().info("Клан " + this.name + " начал войну с " + enemyClan.getName());
     }
 
     public void endWar() {
@@ -266,16 +295,17 @@ public class Clan implements Serializable {
         return warParticipants;
     }
 
+    public boolean isWarParticipant(String playerName) {
+        return warParticipants.contains(playerName);
+    }
+
     public void setWarParticipants(List<String> warParticipants) {
         this.warParticipants = warParticipants;
     }
 
-    public void addWarParticipant(String playerName) {
-        if (warParticipants == null) {
-            warParticipants = new ArrayList<>();
-        }
-        if (!warParticipants.contains(playerName)) {
-            warParticipants.add(playerName);
+    public void addWarParticipant(String name) {
+        if (!warParticipants.contains(name)) {
+            warParticipants.add(name);
         }
     }
 

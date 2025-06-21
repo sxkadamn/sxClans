@@ -31,7 +31,7 @@ public class FilesManager implements FilesManagerInterface {
     }
 
     private void copyDefaultMenuConfigs() {
-        List<String> menuFiles = getResourceFiles("menus");
+        List<String> menuFiles = getResourceFiles();
 
         for (String menuFile : menuFiles) {
             File file = new File(menusFolder, menuFile);
@@ -48,7 +48,7 @@ public class FilesManager implements FilesManagerInterface {
         }
     }
 
-    private List<String> getResourceFiles(String path) {
+    private List<String> getResourceFiles() {
         List<String> filenames = new ArrayList<>();
 
         try {
@@ -59,14 +59,14 @@ public class FilesManager implements FilesManagerInterface {
                     while (entries.hasMoreElements()) {
                         JarEntry entry = entries.nextElement();
                         String name = entry.getName();
-                        if (name.startsWith(path + "/") && name.endsWith(".yml")) {
-                            String fileName = name.substring((path + "/").length());
+                        if (name.startsWith("menus" + "/") && name.endsWith(".yml")) {
+                            String fileName = name.substring(("menus" + "/").length());
                             filenames.add(fileName);
                         }
                     }
                 }
             } else {
-                File dir = new File(plugin.getClass().getClassLoader().getResource(path).toURI());
+                File dir = new File(plugin.getClass().getClassLoader().getResource("menus").toURI());
                 if (dir.exists() && dir.isDirectory()) {
                     File[] files = dir.listFiles((d, name) -> name.endsWith(".yml"));
                     if (files != null) {

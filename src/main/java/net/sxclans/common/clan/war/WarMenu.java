@@ -10,7 +10,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
 import java.util.List;
-import java.util.Optional;
 
 public class WarMenu {
 
@@ -24,20 +23,26 @@ public class WarMenu {
 
         this.config = new WarConfig(
                 Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("title")),
-                fileConfig.getInt("size", 3),
+                fileConfig.getInt("size"),
                 Material.valueOf(fileConfig.getString("filler.material")),
                 fileConfig.getIntegerList("filler.slots"),
                 Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("buttons.send_war_request.display")),
+                Material.valueOf(fileConfig.getString("buttons.send_war_request.material")),
+                fileConfig.getInt("buttons.send_war_request.slot"),
                 Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("buttons.select_participants.display")),
+                Material.valueOf(fileConfig.getString("buttons.select_participants.material")),
+                fileConfig.getInt("buttons.select_participants.slot"),
                 Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("buttons.current_wars.display")),
-                Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("buttons.war_invitations.display"))
+                Material.valueOf(fileConfig.getString("buttons.current_wars.material")),
+                fileConfig.getInt("buttons.current_wars.slot"),
+                Plugin.getWithColor().hexToMinecraftColor(fileConfig.getString("buttons.war_invitations.display")),
+                Material.valueOf(fileConfig.getString("buttons.war_invitations.material")),
+                fileConfig.getInt("buttons.war_invitations.slot")
         );
 
-        this.menu = Optional.of(config)
-                .map(cfg -> Plugin.getMenuManager().createMenuFromConfig(
-                        cfg.name(),
-                        cfg.size(), player))
-                .orElse(null);
+        this.menu = Plugin.getMenuManager().createMenuFromConfig(
+                config.name(),
+                config.size(), player);
     }
 
     public void open() {
@@ -51,25 +56,25 @@ public class WarMenu {
             }
         }
 
-        menu.setSlot(10, new Button(Material.IRON_SWORD)
+        menu.setSlot(config.sendWarRequestSlot(), new Button(config.sendWarRequestMaterial())
                 .setDisplay(config.sendWarRequestDisplay())
                 .withListener(event -> {
                     new SelectEnemyClanMenu(player, Depend.getInstance().getFilesManager()).open();
                 }));
 
-        menu.setSlot(12, new Button(Material.PLAYER_HEAD)
+        menu.setSlot(config.selectParticipantsSlot(), new Button(config.selectParticipantsMaterial())
                 .setDisplay(config.selectParticipantsDisplay())
                 .withListener(event -> {
                     new SelectWarParticipantsMenu(player, Depend.getInstance().getFilesManager()).open();
                 }));
 
-        menu.setSlot(14, new Button(Material.BOOK)
+        menu.setSlot(config.currentWarsSlot(), new Button(config.currentWarsMaterial())
                 .setDisplay(config.currentWarsDisplay())
                 .withListener(event -> {
                     player.sendMessage("§c[Клан] §fПросмотр текущих войн еще не реализован.");
                 }));
 
-        menu.setSlot(16, new Button(Material.PAPER)
+        menu.setSlot(config.warInvitationsSlot(), new Button(config.warInvitationsMaterial())
                 .setDisplay(config.warInvitationsDisplay())
                 .withListener(event -> {
                     new WarInvitationsMenu(player, Depend.getInstance().getFilesManager()).open();
@@ -84,14 +89,24 @@ public class WarMenu {
             Material fillerMaterial,
             List<Integer> fillerSlots,
             String sendWarRequestDisplay,
+            Material sendWarRequestMaterial,
+            int sendWarRequestSlot,
             String selectParticipantsDisplay,
+            Material selectParticipantsMaterial,
+            int selectParticipantsSlot,
             String currentWarsDisplay,
-            String warInvitationsDisplay // Новое поле для кнопки приглашений
+            Material currentWarsMaterial,
+            int currentWarsSlot,
+            String warInvitationsDisplay,
+            Material warInvitationsMaterial,
+            int warInvitationsSlot
     ) {
         public WarConfig {
             if (name == null || fillerMaterial == null || fillerSlots == null ||
-                    sendWarRequestDisplay == null || selectParticipantsDisplay == null ||
-                    currentWarsDisplay == null || warInvitationsDisplay == null) {
+                    sendWarRequestDisplay == null || sendWarRequestMaterial == null ||
+                    selectParticipantsDisplay == null || selectParticipantsMaterial == null ||
+                    currentWarsDisplay == null || currentWarsMaterial == null ||
+                    warInvitationsDisplay == null || warInvitationsMaterial == null) {
                 throw new IllegalArgumentException("Required configuration values are missing in war.yml");
             }
         }
