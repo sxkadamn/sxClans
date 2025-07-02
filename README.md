@@ -44,6 +44,9 @@ storage:
     username: postgres
     password: ""
 
+war_xp_reward: 100
+war_duration: 60
+war_start_delay: 10
 default_member_limit: 10
 clan_ranks:
   leader: " OWNER"
@@ -139,6 +142,12 @@ holograms:
 
 
 messages:
+  score_notification: "&6Текущий счет: &a{clan1} &7- &c{clan2}&6Необходимо для победы: &e{max_score}"
+  player_eliminated: "&7Игрок из клана {clan_name} погиб! (+1 очко {killer_clan})"
+  war_start_notification: "&cВойна начнется через {time} секунд. Подготовьтесь!"
+  war_end_winner: "&aКлан &e{winner_clan} &aпобедил в войне!"
+  war_end_loser: "&cКлан &e{loser_clan} &cпроиграл в войне."
+  all_players_eliminated: "&cВсе участники клана &e{clan_name} &cбыли уничтожены."
   plugin_not_enabled: "Для работы плагина требуется: {pluginName}"
   pvp_disabled: "&cPvP между соклановцами выключено!"
   kick_success: "&cВы исключили {player} из клана."
@@ -146,6 +155,48 @@ messages:
   promote_success: "&aВы повысили {player} до {rank}."
   promoted: "&aВы были повышены до {rank}."
   max_rank: "&cЭтот игрок уже имеет максимальный ранг."
+
+war_world_folder: "wars"
+war_template_world: "world"
+war_locations:
+  - clan1_x: 100
+    clan1_y: 64
+    clan1_z: 100
+    clan1_yaw: 0
+    clan1_pitch: 0
+    clan2_x: 200
+    clan2_y: 64
+    clan2_z: 100
+    clan2_yaw: 180
+    clan2_pitch: 0
+  - clan1_x: 1000
+    clan1_y: 64
+    clan1_z: 1000
+    clan1_yaw: 0
+    clan1_pitch: 0
+    clan2_x: 1200
+    clan2_y: 64
+    clan2_z: 1000
+    clan2_yaw: 180
+    clan2_pitch: 0
+
+scoreboard:
+  lines:
+    - "&7⏳ Время: &f{time_left}s"
+    - "&8──────────────"
+    - "&b⚔ {clan1_name} &8➤ &a{score1}"
+    - "&c⚔ {clan2_name} &8➤ &c{score2}"
+    - "&8──────────────"
+    - "&e🏆 До победы: &6{max_score}"
+    - "&a🟢 Живые: &a{alive1} &8| &c{alive2}"
+    - "&7☠ Убито: &7{dead1} &8| &7{dead2}"
+  animations:
+    title:
+      frames:
+        - "&c&lВ О Й Н А   К Л А Н О В"
+        - "&4&lВ О Й Н А   К Л А Н О В"
+        - "&6&lВ О Й Н А   К Л А Н О В"
+      interval: 10
 
 ```
 
