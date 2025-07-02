@@ -3,193 +3,188 @@ package net.sxclans.common.clan.menus.management.editor;
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
 import net.lielibrary.gui.buttons.Button;
+import net.lielibrary.gui.buttons.ButtonListener;
+import net.sxclans.bukkit.Depend;
 import net.sxclans.bukkit.files.FilesManagerInterface;
+import net.sxclans.common.clan.menus.management.api.ItemEditorHandler;
+import net.wesjd.anvilgui.AnvilGUI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import net.sxclans.bukkit.Depend;
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ClanShopEditorMenu {
 
-    private final ItemsConfig config;
-    private final FileConfiguration fileConfig;
+    private final FileConfiguration config;
+    private final int rows;
+    private final String title;
+    private final Material fillerMaterial;
+    private final List<Integer> fillerSlots;
+    private final Material saveMaterial;
+    private final String saveDisplay;
+    private final int saveSlot;
+    private final List<String> defaultLore;
+    private final double defaultPrice;
+    private final int defaultAmount;
+    private final int defaultLevel;
+    private final String messageSaved;
 
     public ClanShopEditorMenu(FilesManagerInterface filesManager) {
-        fileConfig = filesManager.getMenuConfig("clan_shop");
-        this.config = new ItemsConfig(fileConfig);
+        this.config = filesManager.getMenuConfig("clan_shop");
+
+        this.rows = config.getInt("editor_menu.rows", 6);
+        this.title = Plugin.getWithColor().hexToMinecraftColor(config.getString("editor_menu.title", "&aРедактор предметов"));
+        this.fillerMaterial = Material.valueOf(config.getString("editor_menu.filler.material", "GRAY_STAINED_GLASS_PANE").toUpperCase());
+        this.fillerSlots = config.getIntegerList("editor_menu.filler.slots");
+        this.saveMaterial = Material.valueOf(config.getString("editor_menu.save_button.material", "EMERALD_BLOCK").toUpperCase());
+        this.saveDisplay = Plugin.getWithColor().hexToMinecraftColor(config.getString("editor_menu.save_button.display_name", "&aСохранить"));
+        this.saveSlot = config.getInt("editor_menu.save_button.slot", 49);
+        this.defaultLore = config.getStringList("editor_menu.default_lore");
+        this.defaultPrice = config.getDouble("editor_menu.default_price", 1.0);
+        this.defaultAmount = config.getInt("editor_menu.default_amount", 1);
+        this.defaultLevel = config.getInt("editor_menu.default_required_level", 1);
+        this.messageSaved = Plugin.getWithColor().hexToMinecraftColor(config.getString("editor_menu.messages.saved", "&aСохранено!"));
     }
 
-    public void openItemsMenu(Player player) {
-        AnimatedMenu menu = Plugin.getMenuManager().createMenuFromConfig(
-                Plugin.getWithColor().hexToMinecraftColor(config.title()),
-                config.rows(),
-                player
-        );
+    public void open(Player player) {
+        AnimatedMenu menu = Plugin.getMenuManager().createMenuFromConfig(title, rows, player);
 
-        for (int slot : config.filler().slots()) {
-            if (slot >= 0 && slot < config.rows() * 9) {
-                menu.setSlot(slot, new Button(config.filler().material())
-                        .setDisplay(" ")
-                        .disableInteract(true));
+        for (int slot : fillerSlots) {
+            if (slot >= 0 && slot < rows * 9) {
+                menu.setSlot(slot, new Button(fillerMaterial).setDisplay(" ").disableInteract(true));
             }
         }
 
-        Button saveButton = new Button(config.saveButton().material());
-        saveButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.saveButton().displayName()));
-        saveButton.withListener(event -> {
-            try {
-                saveItemsToConfig(menu);
-                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                        config.messages().saved()));
-            } catch (IOException e) {
-                player.sendMessage("&cНеудалось сохранить предметы");
-            }
-        });
-        menu.setSlot(config.saveButton().slot(), saveButton);
+        loadItems(menu);
 
-        menu.disableInteract(false);
+        Button saveBtn = new Button(saveMaterial)
+                .setDisplay(saveDisplay)
+                .withListener(event -> {
+                    try {
+                        saveItems(menu);
+                        player.sendMessage(messageSaved);
+                    } catch (IOException e) {
+                        player.sendMessage("&cОшибка при сохранении предметов: " + e.getMessage());
+                    }
+                });
 
-        loadItemsFromConfig(menu);
+        menu.setSlot(saveSlot, saveBtn);
         menu.open(player);
     }
 
-    private void saveItemsToConfig(AnimatedMenu menu) throws IOException {
-        fileConfig.set("items", null);
+    private void loadItems(AnimatedMenu menu) {
+        Optional.ofNullable(config.getConfigurationSection("items")).ifPresent(section -> {
+            for (String key : section.getKeys(false)) {
+                String path = "items." + key;
 
-        ItemStack[] storageContents = menu.getInventory().getStorageContents();
+                ItemStack item = config.getItemStack(path + ".stack");
+                int position = config.getInt(path + ".position", 0);
+                double price = config.getDouble(path + ".price", defaultPrice);
+                int level = config.getInt(path + ".required_level", defaultLevel);
+                String name = config.getString(path + ".name", "");
 
-        for (int slotIndex = 0; slotIndex < storageContents.length; slotIndex++) {
-            ItemStack item = storageContents[slotIndex];
+                if (item == null) item = new ItemStack(Material.STONE);
 
-            if (item != null && !isFillerItem(item) && !isSaveButton(item)) {
-                String itemKey = "items.item" + slotIndex;
+                ItemMeta meta = item.getItemMeta();
+                if (meta == null) return;
 
-                fileConfig.set(itemKey + ".price", config.defaultPrice());
-                fileConfig.set(itemKey + ".amount", config.defaultAmount());
-                fileConfig.set(itemKey + ".name", item.getItemMeta() != null && item.getItemMeta().hasDisplayName() ?
-                        Plugin.getWithColor().hexToMinecraftColor(item.getItemMeta().getDisplayName()) : "");
-                fileConfig.set(itemKey + ".stack", item);
-                fileConfig.set(itemKey + ".required_level", config.defaultRequiredLevel());
-                fileConfig.set(itemKey + ".position", slotIndex);
+                List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
 
+                List<String> formatted = new ArrayList<>();
+                for (String l : defaultLore) {
+                    formatted.add(Plugin.getWithColor().hexToMinecraftColor(
+                            l.replace("%price%", String.valueOf(price))
+                                    .replace("%level%", String.valueOf(level))
+                    ));
+                }
+                if (!lore.containsAll(formatted)) lore.addAll(formatted);
+
+                meta.setLore(lore);
+                if (!name.isEmpty()) meta.setDisplayName(Plugin.getWithColor().hexToMinecraftColor(name));
+                item.setItemMeta(meta);
+
+                int finalPosition = position;
+                menu.setSlot(position, new Button(item)
+                        .withListener(event -> {
+                            if (event.isRightClick()) {
+                                openItemEditMenu((Player) event.getWhoClicked(), finalPosition);
+                            }
+                        })
+                        .setDisplay(meta.getDisplayName()));
             }
+        });
+    }
+
+    private void saveItems(AnimatedMenu menu) throws IOException {
+        config.set("items", null);
+        ItemStack[] contents = menu.getInventory().getStorageContents();
+
+        for (int i = 0; i < contents.length; i++) {
+            ItemStack item = contents[i];
+            if (item == null || isFiller(item) || isSave(item)) continue;
+
+            String path = "items.item" + i;
+
+            ItemStack cloned = item.clone();
+            ItemMeta meta = cloned.getItemMeta();
+
+            if (meta != null && meta.hasLore()) {
+                List<String> stripped = meta.getLore().stream().map(this::stripToMinecraftColor).toList();
+                meta.setLore(stripped);
+                cloned.setItemMeta(meta);
+            }
+
+            config.set(path + ".stack", cloned);
+            config.set(path + ".price", defaultPrice);
+            config.set(path + ".amount", defaultAmount);
+            config.set(path + ".required_level", defaultLevel);
+            config.set(path + ".position", i);
+            config.set(path + ".name", meta != null && meta.hasDisplayName() ? Plugin.getWithColor().hexToMinecraftColor(meta.getDisplayName()) : "");
         }
 
         Depend.getInstance().getFilesManager().saveMenuConfigs();
     }
 
-    private boolean isFillerItem(ItemStack item) {
-        return item != null && item.getType() == config.filler().material();
+    private void openItemEditMenu(Player player, int slot) {
+        AnimatedMenu editMenu = Plugin.getMenuManager().createMenuFromConfig("&6Редактирование предмета", 3, player);
+        ItemEditorHandler handler = new DefaultItemEditorHandler(config, () -> open(player));
+
+        editMenu.setSlot(11, new Button(Material.GOLD_INGOT)
+                .setDisplay("&6Изменить цену")
+                .withListener(e -> handler.editPrice(player, slot)));
+
+        editMenu.setSlot(15, new Button(Material.EXPERIENCE_BOTTLE)
+                .setDisplay("&bИзменить уровень")
+                .withListener(e -> handler.editLevel(player, slot)));
+
+        editMenu.open(player);
     }
 
-    private boolean isSaveButton(ItemStack item) {
-        return item != null && item.getType() == config.saveButton().material() &&
-                item.getItemMeta() != null && item.getItemMeta().hasDisplayName() &&
-                Plugin.getWithColor().hexToMinecraftColor(item.getItemMeta().getDisplayName())
-                        .equals(Plugin.getWithColor().hexToMinecraftColor(config.saveButton().displayName()));
+
+
+    private boolean isFiller(ItemStack item) {
+        return item.getType() == fillerMaterial;
     }
 
-    private void loadItemsFromConfig(AnimatedMenu menu) {
-        Optional.ofNullable(fileConfig.getConfigurationSection("items"))
-                .ifPresent(itemsSection -> {
-                    itemsSection.getKeys(false).forEach(element -> {
-                        ItemStack item = fileConfig.getItemStack("items." + element + ".stack");
-                        int position = fileConfig.getInt("items." + element + ".position", 0);
-                        double price = fileConfig.getDouble("items." + element + ".price", config.defaultPrice());
-                        int requiredLevel = fileConfig.getInt("items." + element + ".required_level", config.defaultRequiredLevel());
-
-                        if (item == null) {
-                            item = new ItemStack(Material.STONE);
-                        }
-
-                        ItemMeta meta = item.getItemMeta();
-                        if (meta == null) {
-                            meta = Bukkit.getItemFactory().getItemMeta(item.getType());
-                        }
-
-                        List<String> lore = new ArrayList<>(meta.getLore());
-                        boolean hasDefaultLore = false;
-                        List<String> defaultLoreWithPlaceholders = new ArrayList<>();
-                        for (String loreLine : config.defaultLore()) {
-                            String formattedLine = loreLine.replace("%price%", String.valueOf(price))
-                                    .replace("%level%", String.valueOf(requiredLevel));
-                            defaultLoreWithPlaceholders.add(Plugin.getWithColor().hexToMinecraftColor(formattedLine));
-                            if (lore.contains(formattedLine)) {
-                                hasDefaultLore = true;
-                            }
-                        }
-
-                        if (!hasDefaultLore) {
-                            lore.addAll(defaultLoreWithPlaceholders);
-                        }
-
-                        meta.setLore(lore);
-                        item.setItemMeta(meta);
-
-                        Button menuSlot = new Button(item);
-                        menuSlot.setDisplay(Plugin.getWithColor().hexToMinecraftColor(
-                                fileConfig.getString("items." + element + ".name", "")
-                        ));
-                        menu.setSlot(position, menuSlot);
-                    });
-                });
+    private boolean isSave(ItemStack item) {
+        if (item.getType() != saveMaterial) return false;
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && Plugin.getWithColor().hexToMinecraftColor(meta.getDisplayName()).equals(saveDisplay);
     }
 
-    private record Filler(Material material, List<Integer> slots) {}
-
-    private record SaveButton(String displayName, Material material, int slot) {}
-
-    private record Messages(String saved) {}
-
-    private static class ItemsConfig {
-        private final String title;
-        private final int rows;
-        private final double defaultPrice;
-        private final int defaultAmount;
-        private final int defaultRequiredLevel;
-        private final List<String> defaultLore;
-        private final Filler filler;
-        private final SaveButton saveButton;
-        private final Messages messages;
-
-        public ItemsConfig(FileConfiguration config) {
-            this.title = config.getString("editor_menu.title", "&aРедактор предметов");
-            this.rows = config.getInt("editor_menu.rows", 6);
-            this.defaultPrice = config.getDouble("editor_menu.default_price", 1.0);
-            this.defaultAmount = config.getInt("editor_menu.default_amount", 1);
-            this.defaultRequiredLevel = config.getInt("editor_menu.default_required_level", 1);
-            this.defaultLore = config.getStringList("editor_menu.default_lore");
-
-            String fillerMaterial = config.getString("editor_menu.filler.material", "GRAY_STAINED_GLASS_PANE");
-            List<Integer> fillerSlots = config.getIntegerList("editor_menu.filler.slots");
-            this.filler = new Filler(Material.valueOf(fillerMaterial.toUpperCase()), fillerSlots != null ? fillerSlots : new ArrayList<>());
-
-            String saveButtonName = config.getString("editor_menu.save_button.display_name", "&aСохранить предметы");
-            String saveButtonMaterial = config.getString("editor_menu.save_button.material", "GREEN_STAINED_GLASS_PANE");
-            int saveButtonSlot = config.getInt("editor_menu.save_button.slot", 53);
-            this.saveButton = new SaveButton(saveButtonName, Material.valueOf(saveButtonMaterial.toUpperCase()), saveButtonSlot);
-
-            String savedMessage = config.getString("editor_menu.messages.saved", "&aИзменения успешно сохранены!");
-            this.messages = new Messages(savedMessage);
+    private String stripToMinecraftColor(String input) {
+        try {
+            return net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                    .legacySection()
+                    .serialize(net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(input));
+        } catch (Exception e) {
+            return input;
         }
-
-        public String title() { return title; }
-        public int rows() { return rows; }
-        public double defaultPrice() { return defaultPrice; }
-        public int defaultAmount() { return defaultAmount; }
-        public int defaultRequiredLevel() { return defaultRequiredLevel; }
-        public List<String> defaultLore() { return defaultLore != null ? defaultLore : new ArrayList<>(); }
-        public Filler filler() { return filler; }
-        public SaveButton saveButton() { return saveButton; }
-        public Messages messages() { return messages; }
     }
 }

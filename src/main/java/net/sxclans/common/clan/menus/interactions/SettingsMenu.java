@@ -3,7 +3,6 @@ package net.sxclans.common.clan.menus.interactions;
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
 import net.lielibrary.bukkit.requirements.RequirementAPI;
-import net.lielibrary.bukkit.requirements.RequirementExecute;
 import net.lielibrary.gui.buttons.Button;
 import net.sxclans.bukkit.files.FilesManagerInterface;
 import net.sxclans.common.clan.Clan;
@@ -15,7 +14,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.Location;
 
-import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -57,7 +55,8 @@ public class SettingsMenu {
                                 key -> new ButtonConfig(
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.material") : null,
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.material") : null,
-                                        key.equals("pvp_toggle") ? fileConfig.getInt("buttons." + key + ".enabled.slot") : fileConfig.getInt("buttons." + key + ".slot"),
+                                        key.equals("pvp_toggle") ? fileConfig.getInt("buttons." + key + ".enabled.slot") :
+                                                fileConfig.getInt("buttons." + key + ".slot"),
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.display") : null,
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".disabled.display") : null,
                                         key.equals("pvp_toggle") ? fileConfig.getString("buttons." + key + ".enabled.lore") : null,
@@ -66,7 +65,7 @@ public class SettingsMenu {
                                         key.equals("pvp_toggle") ? null : fileConfig.getString("buttons." + key + ".display"),
                                         fileConfig.getStringList("buttons." + key + ".lore")
                                 ))),
-                getMaterial(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
+                getMaterial(fileConfig.getString("filler.material")),
                 fileConfig.getIntegerList("filler.slots").stream().distinct().collect(Collectors.toList())
         );
         this.menu = Optional.of(config)
@@ -77,7 +76,7 @@ public class SettingsMenu {
                 .orElse(null);
 
         if (!clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
-            executeCommandsWithPlaceholders(fileConfig, "messages.no_permission", null);
+            RequirementAPI.executeFromConfig(player, "messages.no_permission");
         }
     }
 
@@ -100,7 +99,7 @@ public class SettingsMenu {
         int maxLimit = config.maxMemberLimit();
 
         if (newLimit > maxLimit) {
-            executeCommandsWithPlaceholders(fileConfig, "messages.max_limit_reached", null);
+            RequirementAPI.executeFromConfig(player, "messages.max_limit_reached");
             return;
         }
 
@@ -108,7 +107,8 @@ public class SettingsMenu {
                 .forEach(type -> {
                     ButtonConfig btnConfig = config.buttons().get(type);
                     Material material = type.equals("pvp_toggle")
-                            ? getMaterial(pvpEnabled ? btnConfig.disabledMaterial() : btnConfig.enabledMaterial())
+                            ? getMaterial(pvpEnabled ? btnConfig.disabledMaterial()
+                            : btnConfig.enabledMaterial())
                             : getMaterial(btnConfig.material());
                     String display = Plugin.getWithColor().hexToMinecraftColor(type.equals("pvp_toggle")
                             ? (pvpEnabled ? btnConfig.disabledDisplay() : btnConfig.enabledDisplay())
@@ -132,65 +132,63 @@ public class SettingsMenu {
                                     case "pvp_toggle" -> {
                                         clan.setPvpEnabled(!pvpEnabled);
                                         clan.save();
-                                        executeCommandsWithPlaceholders(fileConfig, "buttons.pvp_toggle.commands", null);
+                                        executeReplaced("buttons.pvp_toggle.commands", null);
                                         menu.refreshSlot(btnConfig.slot());
                                     }
                                     case "set_base" -> {
                                         Location location = player.getLocation();
                                         clan.setBaseLocation(location);
                                         clan.save();
-                                        executeCommandsWithPlaceholders(fileConfig, "buttons.set_base.commands", location);
+                                        executeReplaced("buttons.set_base.commands", location);
+                                        menu.refreshSlot(btnConfig.slot());
                                     }
                                     case "increase_limit" -> {
                                         VaultEconomyProvider economy = new VaultEconomyProvider();
                                         if (!economy.isAvailable() || economy.getBalance(player) < cost) {
-                                            executeCommandsWithPlaceholders(fileConfig, "buttons.increase_limit.error_commands", null);
+                                            executeReplaced("buttons.increase_limit.error_commands", null);
                                             return;
                                         }
                                         economy.withdraw(player, cost);
                                         clan.setMemberLimit(newLimit);
                                         clan.save();
-                                        executeCommandsWithPlaceholders(fileConfig, "buttons.increase_limit.success_commands", null);
+                                        executeReplaced("buttons.increase_limit.success_commands", null);
+                                        menu.refreshSlot(btnConfig.slot());
                                     }
                                     case "shop_editor" -> {
                                         if (!player.isOp()) {
-                                            executeCommandsWithPlaceholders(fileConfig, "messages.no_permission", null);
+                                            executeReplaced("messages.no_permission", null);
                                             return;
                                         }
-                                        new ClanShopEditorMenu(filesManager).openItemsMenu(player);
-                                        executeCommandsWithPlaceholders(fileConfig, "buttons.shop_editor.commands", null);
+                                        new ClanShopEditorMenu(filesManager).open(player);
+                                        executeReplaced("buttons.shop_editor.commands", null);
                                     }
                                 }
                             });
                     menu.setSlot(btnConfig.slot(), button);
-                    menu.refreshItems();
                 });
 
         menu.open(player);
     }
 
-    private void executeCommandsWithPlaceholders(FileConfiguration config, String path, Location location) {
-        List<String> commands = config.getStringList(path);
-        if (commands.isEmpty()) {
-            String singleCommand = config.getString(path);
-            if (singleCommand != null && !singleCommand.isEmpty()) {
-                commands = List.of(singleCommand);
-            }
+    private void executeReplaced(String path, Location location) {
+        List<String> raw = fileConfig.getStringList(path);
+        if (raw.isEmpty()) {
+            String single = fileConfig.getString(path);
+            if (single == null || single.isBlank()) return;
+            raw = List.of(single);
         }
-        if (commands.isEmpty()) return;
-
-        List<String> processedCommands = commands.stream()
-                .map(command -> replacePlaceholders(command, location))
+        List<String> replaced = raw.stream()
+                .map(cmd -> replacePlaceholders(cmd, location))
                 .collect(Collectors.toList());
 
-        RequirementExecute.execute(processedCommands, player);
+        RequirementAPI.executeList(player, replaced);
     }
 
     private String replacePlaceholders(String input, Location location) {
         String result = input
                 .replace("{clan_name}", clan.getName())
                 .replace("{player_name}", player.getName())
-                .replace("{clan_pvp_status}", clan.isPvpEnabled() ? "Включено" : "Выключено")
+                .replace("{clan_pvp_status}", clan.isPvpEnabled() ? "Выключено" : "Включено")
                 .replace("{new_limit}", String.valueOf(clan.getMemberLimit() + config.memberLimitIncreaseStep()))
                 .replace("{clan_member_limit}", String.valueOf(clan.getMemberLimit()))
                 .replace("{clan_members}", String.valueOf(clan.getMembers().size()));
@@ -237,6 +235,14 @@ public class SettingsMenu {
             if (size < 1 || size > 6) {
                 throw new IllegalArgumentException("Menu size must be between 1 and 6 rows");
             }
+        }
+
+        public String getMessage(String key) {
+            return switch (key) {
+                case "noPermission" -> noPermission;
+                case "maxLimitReached" -> maxLimitReached;
+                default -> null;
+            };
         }
     }
 

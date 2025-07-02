@@ -2,6 +2,7 @@ package net.sxclans.common.clan.base;
 
 import net.sxclans.bukkit.Depend;
 import net.sxclans.common.clan.Clan;
+import net.sxclans.common.clan.war.arena.Arena;
 import net.sxclans.common.clan.war.manager.WarManager;
 import org.bukkit.entity.Player;
 
@@ -210,14 +211,27 @@ public class FileBasedClanManager implements ClanBaseManager {
 
         if (senderClan == null || receiverClan == null) return;
 
-        WarManager warManager = new WarManager(senderClan, receiverClan);
+
+        Optional<Arena> optionalArena = Arena.getArenas().stream()
+                .filter(Arena::isOpen)
+                .findFirst();
+
+        if (optionalArena.isEmpty()) {
+            System.out.println("[WAR] No available arenas to start war between "
+                    + senderClanName + " and " + receiverClanName);
+            return;
+        }
+
+        Arena arena = optionalArena.get();
+
+        WarManager warManager = new WarManager(senderClan, receiverClan, arena);
         setActiveWarManager(senderClan, receiverClan, warManager);
         warManager.startWarCountdown();
 
         senderClan.acceptWarRequest(receiverClan);
-
         warRequests.remove(receiverClanName);
     }
+
 
     @Override
     public void cancelWarRequest(String receiverClanName) {

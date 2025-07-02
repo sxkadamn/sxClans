@@ -3,7 +3,6 @@ package net.sxclans.common.clan.menus;
 import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
 import net.lielibrary.bukkit.requirements.RequirementAPI;
-import net.lielibrary.bukkit.requirements.RequirementExecute;
 import net.lielibrary.gui.buttons.Button;
 import net.sxclans.bukkit.Depend;
 import net.sxclans.bukkit.files.FilesManagerInterface;
@@ -59,6 +58,7 @@ public class FactorMenu {
         menu.setSlot(config.getInt("menu.main_slot", 13), mainButton);
 
         boolean isLeader = clan.getLeader().equals(player.getName());
+
         Button leaveButton = new Button(getMaterial(config, "menu.buttons.leave.item"));
         leaveButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(
                 isLeader ? config.getString("menu.buttons.leave.leader_display") : config.getString("menu.buttons.leave.member_display")
@@ -67,23 +67,28 @@ public class FactorMenu {
         leaveButton.withListener(event -> {
             if (isLeader) {
                 Depend.getClanManage().removeClan(clan);
-                executeCommandsWithPlaceholders(config, "menu.buttons.leave.leader_commands");
+                RequirementAPI.executeFromConfig(player, "menu.buttons.leave.leader_commands");
             } else {
                 Depend.getClanManage().removeMember(clan, player.getName());
+                clan.getMemberRanks().remove(player.getName());
                 clan.removeMember(player.getName());
-                executeCommandsWithPlaceholders(config, "menu.buttons.leave.member_commands");
+                RequirementAPI.executeFromConfig(player, "menu.buttons.leave.member_commands");
             }
             player.closeInventory();
         });
         menu.setSlot(config.getInt("menu.buttons.leave.slot", 46), leaveButton);
 
-        if (isLeader) {
-            Button inviteButton = new Button(getMaterial(config, "menu.buttons.invite.item"));
-            inviteButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.invite.display")));
-            inviteButton.disableInteract(false);
-            inviteButton.withListener(event -> new InviteMenu(player, filesManager).open());
-            menu.setSlot(config.getInt("menu.buttons.invite.slot", 20), inviteButton);
-        }
+        Button inviteButton = new Button(getMaterial(config, "menu.buttons.invite.item"));
+        inviteButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.invite.display")));
+        inviteButton.disableInteract(false);
+        inviteButton.withListener(event -> {
+            if (!isLeader) {
+                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&cВы не лидер, чтобы приглашать игроков."));
+                return;
+            }
+            new InviteMenu(player, filesManager).open();
+        });
+        menu.setSlot(config.getInt("menu.buttons.invite.slot", 20), inviteButton);
 
         Button clanShopButton = new Button(getMaterial(config, "menu.buttons.clan_shop.item"));
         clanShopButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.clan_shop.display")));
@@ -109,13 +114,17 @@ public class FactorMenu {
         membersButton.disableInteract(false);
         menu.setSlot(config.getInt("menu.buttons.members.slot"), membersButton);
 
-        if (clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
-            Button settingsButton = new Button(getMaterial(config, "menu.buttons.settings.item"));
-            settingsButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.settings.display")));
-            settingsButton.disableInteract(false);
-            settingsButton.withListener(event -> new SettingsMenu(player, clan, filesManager).open());
-            menu.setSlot(config.getInt("menu.buttons.settings.slot"), settingsButton);
-        }
+        Button settingsButton = new Button(getMaterial(config, "menu.buttons.settings.item"));
+        settingsButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.settings.display")));
+        settingsButton.disableInteract(false);
+        settingsButton.withListener(event -> {
+            if (!clan.hasPermission(player.getName(), ClanRank.MODERATOR)) {
+                player.sendMessage(Plugin.getWithColor().hexToMinecraftColor("&cУ вас нет прав на изменение настроек клана."));
+                return;
+            }
+            new SettingsMenu(player, clan, filesManager).open();
+        });
+        menu.setSlot(config.getInt("menu.buttons.settings.slot"), settingsButton);
 
         Button teleportButton = new Button(getMaterial(config, "menu.buttons.teleport_base.item"));
         teleportButton.setDisplay(Plugin.getWithColor().hexToMinecraftColor(config.getString("menu.buttons.teleport_base.display")));
@@ -123,9 +132,9 @@ public class FactorMenu {
         teleportButton.withListener(event -> {
             if (clan.getBaseLocation() != null) {
                 player.teleport(clan.getBaseLocation());
-                executeCommandsWithPlaceholders(config, "menu.buttons.teleport_base.success_commands");
+                RequirementAPI.executeFromConfig(player, "menu.buttons.teleport_base.success_commands");
             } else {
-                executeCommandsWithPlaceholders(config, "menu.buttons.teleport_base.no_base_commands");
+                RequirementAPI.executeFromConfig(player, "menu.buttons.teleport_base.no_base_commands");
             }
             player.closeInventory();
         });
@@ -136,7 +145,7 @@ public class FactorMenu {
         warButton.disableInteract(false);
         warButton.withListener(event -> {
             if (clan.isInWar()) {
-                executeCommandsWithPlaceholders(config, "menu.buttons.war.already_in_war_commands");
+                RequirementAPI.executeFromConfig(player, "menu.buttons.war.already_in_war_commands");
             } else {
                 new WarMenu(player, filesManager).open();
             }
@@ -144,17 +153,6 @@ public class FactorMenu {
         menu.setSlot(config.getInt("menu.buttons.war.slot"), warButton);
 
         menu.open(player);
-    }
-
-    private void executeCommandsWithPlaceholders(FileConfiguration config, String path) {
-        List<String> commands = config.getStringList(path);
-        if (commands.isEmpty()) return;
-
-        List<String> processedCommands = commands.stream()
-                .map(this::replacePlaceholders)
-                .collect(Collectors.toList());
-
-        RequirementExecute.execute(processedCommands, player);
     }
 
     private String replacePlaceholders(String input) {

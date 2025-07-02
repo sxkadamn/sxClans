@@ -14,6 +14,9 @@ filler:
     - 18
     - 19
 
+messages:
+  permission: "&6У вас нет прав для отправки заявки на войну"
+
 buttons:
   send_war_request:
     display: "&aОтправить запрос на войну"

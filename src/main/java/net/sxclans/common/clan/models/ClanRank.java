@@ -3,6 +3,8 @@ package net.sxclans.common.clan.models;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.io.Serializable;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 public enum ClanRank implements Serializable{
     LEADER("leader", 4),
@@ -33,11 +35,18 @@ public enum ClanRank implements Serializable{
     }
 
     public ClanRank getNextRank() {
-        return switch (this) {
-            case MEMBER -> MODERATOR;
-            case MODERATOR -> CO_LEADER;
-            case CO_LEADER -> LEADER;
-            case LEADER -> null;
-        };
+        int nextPower = this.power + 1;
+        return Stream.of(ClanRank.values())
+                .filter(rank -> rank.power == nextPower)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public ClanRank getPreviousRank() {
+        int prevPower = this.power - 1;
+        return Stream.of(ClanRank.values())
+                .filter(rank -> rank.power == prevPower)
+                .findFirst()
+                .orElse(null);
     }
 }

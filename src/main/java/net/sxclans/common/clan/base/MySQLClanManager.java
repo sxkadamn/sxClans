@@ -3,6 +3,7 @@ package net.sxclans.common.clan.base;
 import net.sxclans.bukkit.Depend;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.models.ClanRank;
+import net.sxclans.common.clan.war.arena.Arena;
 import net.sxclans.common.clan.war.manager.WarManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -201,10 +202,20 @@ public class MySQLClanManager implements ClanBaseManager {
                 Clan clan2 = clans.get(rs.getString("clan2"));
 
                 if (clan1 != null && clan2 != null) {
-                    WarManager war = new WarManager(
-                            clan1,
-                            clan2
-                    );
+
+                    Optional<Arena> optionalArena = Arena.getArenas().stream()
+                            .filter(Arena::isOpen)
+                            .findFirst();
+
+                    if (optionalArena.isEmpty()) {
+                        System.out.println("[WAR] No free arenas available to restore war: "
+                                + clan1.getName() + " vs " + clan2.getName());
+                        continue;
+                    }
+
+                    Arena arena = optionalArena.get();
+
+                    WarManager war = new WarManager(clan1, clan2, arena);
                     activeWars.put(generateWarKey(clan1, clan2), war);
                 }
             }
@@ -212,6 +223,7 @@ public class MySQLClanManager implements ClanBaseManager {
             logError("Error loading active wars", e);
         }
     }
+
 
     @Override
     public void addWarRequest(String sender, String receiver) {
@@ -246,10 +258,22 @@ public class MySQLClanManager implements ClanBaseManager {
             logError("Error accepting war request", e);
         }
 
-        WarManager war = new WarManager(clan1, clan2);
+        Optional<Arena> optionalArena = Arena.getArenas().stream()
+                .filter(Arena::isOpen)
+                .findFirst();
+
+        if (optionalArena.isEmpty()) {
+            System.out.println("[WAR] No available arenas to start war between " + sender + " and " + receiver);
+            return;
+        }
+
+        Arena arena = optionalArena.get();
+
+        WarManager war = new WarManager(clan1, clan2, arena);
         setActiveWarManager(clan1, clan2, war);
         war.startWarCountdown();
     }
+
 
     @Override
     public void cancelWarRequest(String receiver) {

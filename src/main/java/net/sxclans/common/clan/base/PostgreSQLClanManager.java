@@ -3,6 +3,7 @@ package net.sxclans.common.clan.base;
 import net.sxclans.bukkit.Depend;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.models.ClanRank;
+import net.sxclans.common.clan.war.arena.Arena;
 import net.sxclans.common.clan.war.manager.WarManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -31,7 +32,6 @@ public class PostgreSQLClanManager implements ClanBaseManager {
         try {
             clan.getMembers().forEach(playerToClan::remove);
         } catch (Exception e) {
-        } finally {
         }
     }
 
@@ -177,16 +177,24 @@ public class PostgreSQLClanManager implements ClanBaseManager {
                 Clan clan2 = clans.get(rs.getString("clan2"));
                 if (clan1 == null || clan2 == null) continue;
 
-                WarManager war = new WarManager(
-                        clan1,
-                        clan2
-                );
+                Optional<Arena> optionalArena = Arena.getArenas().stream()
+                        .filter(Arena::isOpen)
+                        .findFirst();
+
+                if (optionalArena.isEmpty()) {
+                    System.out.println("[WAR] No free arenas available to restore war: " + clan1.getName() + " vs " + clan2.getName());
+                    continue;
+                }
+
+                Arena arena = optionalArena.get();
+                WarManager war = new WarManager(clan1, clan2, arena);
                 activeWars.put(clan1.getName() + ":" + clan2.getName(), war);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+
 
     @Override
     public void saveClans() {
@@ -346,17 +354,27 @@ public class PostgreSQLClanManager implements ClanBaseManager {
 
         try (PreparedStatement ps = connection.prepareStatement(
                 "DELETE FROM war_requests WHERE receiver_clan = ?")) {
-
             ps.setString(1, receiver);
             ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
-        WarManager war = new WarManager(clan1, clan2);
+        Optional<Arena> optionalArena = Arena.getArenas().stream()
+                .filter(Arena::isOpen)
+                .findFirst();
+
+        if (optionalArena.isEmpty()) {
+            System.out.println("[WAR] No free arenas available for war: " + clan1.getName() + " vs " + clan2.getName());
+            return;
+        }
+
+        Arena arena = optionalArena.get();
+        WarManager war = new WarManager(clan1, clan2, arena);
         setActiveWarManager(clan1, clan2, war);
         war.startWarCountdown();
     }
+
 
     @Override
     public void cancelWarRequest(String receiver) {

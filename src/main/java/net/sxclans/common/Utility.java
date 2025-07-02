@@ -2,7 +2,11 @@ package net.sxclans.common;
 
 import net.sxclans.bukkit.Depend;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Sound;
+import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
 import java.util.regex.Matcher;
@@ -35,6 +39,32 @@ public class Utility {
         }
     }
 
+    public static void serializeLocation(YamlConfiguration config, String path, Location loc) {
+        if (loc == null || loc.getWorld() == null) return;
+
+        config.set(path + ".world", loc.getWorld().getName());
+        config.set(path + ".x", loc.getX());
+        config.set(path + ".y", loc.getY());
+        config.set(path + ".z", loc.getZ());
+    }
+
+    public static Location deserializeLocation(YamlConfiguration config, String path) {
+        ConfigurationSection section = config.getConfigurationSection(path);
+        if (section == null) return null;
+
+        String worldName = section.getString("world");
+        if (worldName == null) return null;
+
+        World world = Bukkit.getWorld(worldName);
+        if (world == null) return null;
+
+        double x = section.getDouble("x");
+        double y = section.getDouble("y");
+        double z = section.getDouble("z");
+
+        return new Location(world, x, y, z);
+    }
+
     public static Float getVersion() {
         try {
             String string = Bukkit.getVersion();
@@ -48,5 +78,20 @@ public class Utility {
             throw new RuntimeException(numberFormatException);
         }
         return Float.valueOf(0.0f);
+    }
+
+    public static void saveSafely(String name, Runnable action) {
+        try {
+            action.run();
+            Bukkit.getLogger().info("Successfully saved " + name + ".");
+        } catch (Exception e) {
+            Bukkit.getLogger().severe("Failed to save " + name + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    public static void cancelAllTasks() {
+        Bukkit.getScheduler().cancelTasks(Depend.getInstance());
+        Bukkit.getLogger().info("All scheduled tasks cancelled.");
     }
 }

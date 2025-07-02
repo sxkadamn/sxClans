@@ -47,7 +47,9 @@ public class SelectWarParticipantsMenu {
     }
 
     public void open() {
-        if (menu == null || config == null) return;
+        if (config == null) return;
+
+        AnimatedMenu menu = Plugin.getMenuManager().createMenuFromConfig(config.name(), config.size(), player);
 
         for (int slot : config.fillerSlots()) {
             if (slot >= 0 && slot < config.size() * 9) {
@@ -61,45 +63,45 @@ public class SelectWarParticipantsMenu {
         int index = 0;
 
         for (String member : clan.getMembers()) {
-            if (index >= buttonSlots.size()) {
-                break;
-            }
+            if (index >= buttonSlots.size()) break;
 
             int slot = buttonSlots.get(index);
+            final String memberName = member;
 
-            boolean isParticipant = clan.isWarParticipant(member);
+            boolean isParticipant = clan.isWarParticipant(memberName);
             String displayText = isParticipant
-                    ? config.displayRemove().replace("{player}", member)
-                    : config.displayAdd().replace("{player}", member);
+                    ? config.displayRemove().replace("{player}", memberName)
+                    : config.displayAdd().replace("{player}", memberName);
 
             menu.setSlot(slot, new Button(Material.PLAYER_HEAD)
                     .setDisplay(displayText)
                     .withListener(event -> {
+                        boolean currentlyParticipant = clan.isWarParticipant(memberName);
                         if (event.isRightClick()) {
-                            Player target = Depend.getInstance().getServer().getPlayerExact(member);
+                            Player target = Depend.getInstance().getServer().getPlayerExact(memberName);
                             if (target != null) {
                                 player.openInventory(target.getInventory());
                             } else {
                                 player.sendMessage("§cИгрок не в сети.");
                             }
                         } else {
-                            if (isParticipant) {
-                                clan.removeWarParticipant(member);
-                                player.sendMessage(config.removedFromWarMessage().replace("{player}", member));
+                            if (currentlyParticipant) {
+                                clan.removeWarParticipant(memberName);
+                                player.sendMessage(config.removedFromWarMessage().replace("{player}", memberName));
                             } else {
                                 if (clan.getWarParticipants().size() >= config.maxParticipants()) {
                                     player.sendMessage(config.maxParticipantsReachedMessage());
                                     return;
                                 }
-                                clan.addWarParticipant(member);
-                                player.sendMessage(config.addedToWarMessage().replace("{player}", member));
+                                clan.addWarParticipant(memberName);
+                                player.sendMessage(config.addedToWarMessage().replace("{player}", memberName));
                             }
                             open();
                         }
                     })
                     .applyMeta(meta -> {
                         if (meta instanceof SkullMeta skullMeta) {
-                            var offlinePlayer = Depend.getInstance().getServer().getOfflinePlayer(member);
+                            var offlinePlayer = Depend.getInstance().getServer().getOfflinePlayer(memberName);
                             if (offlinePlayer != null && offlinePlayer.hasPlayedBefore()) {
                                 skullMeta.setOwningPlayer(offlinePlayer);
                             }
@@ -113,6 +115,7 @@ public class SelectWarParticipantsMenu {
         menu.open(player);
     }
 
+
     private record WarParticipantsConfig(
             String name,
             int size,
@@ -121,7 +124,7 @@ public class SelectWarParticipantsMenu {
             List<Integer> buttonSlots,
             String displayAdd,
             String displayRemove,
-            int maxParticipants, // Максимальное количество участников
+            int maxParticipants,
             String addedToWarMessage,
             String removedFromWarMessage,
             String maxParticipantsReachedMessage

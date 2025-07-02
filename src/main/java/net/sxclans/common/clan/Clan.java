@@ -1,12 +1,10 @@
 package net.sxclans.common.clan;
 
 import net.sxclans.bukkit.Depend;
-
 import net.sxclans.common.clan.models.ClanRank;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.entity.Player;
 
 import java.io.*;
 import java.util.*;
@@ -24,7 +22,7 @@ public class Clan implements Serializable {
     private int memberLimit;
     private double bank;
     private double rubles;
-    private int level;
+    private double level;
 
     private List<String> warParticipants;
     private boolean isInWar;
@@ -34,8 +32,8 @@ public class Clan implements Serializable {
     public Clan(String name, String owner) {
         this.name = name;
         this.leader = owner;
-        this.level = 1;
-        this.rubles = 0;
+        this.level = 0.0;
+        this.rubles = 0.0;
         this.members = new ArrayList<>();
         this.memberRanks = new HashMap<>();
         this.pvpEnabled = false;
@@ -107,7 +105,6 @@ public class Clan implements Serializable {
     public void removeMember(String playerName) {
         members.remove(playerName);
         memberRanks.remove(playerName);
-
         save();
     }
 
@@ -134,17 +131,15 @@ public class Clan implements Serializable {
 
     public boolean hasPermission(String playerName, ClanRank requiredRank) {
         ClanRank playerRank = getMemberRank(playerName);
-        if (playerRank == null) return false;
-        return playerRank.getPower() >= requiredRank.getPower();
+        return playerRank != null && playerRank.getPower() >= requiredRank.getPower();
     }
 
     public ClanRank getMemberRank(String name) {
-        for (Map.Entry<String, ClanRank> entry : memberRanks.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(name)) {
-                return entry.getValue();
-            }
-        }
-        return null;
+        return memberRanks.entrySet().stream()
+                .filter(entry -> entry.getKey().equalsIgnoreCase(name))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
     }
 
     public long countMembersByRank(ClanRank rank) {
@@ -166,6 +161,7 @@ public class Clan implements Serializable {
             save();
         }
     }
+
     public double getBank() {
         return bank;
     }
@@ -178,12 +174,8 @@ public class Clan implements Serializable {
         this.rubles = rubles;
     }
 
-    public void setLevel(int level) {
-        this.level = level;
-    }
-
-    public void setWarScore(int warScore) {
-        this.warScore = warScore;
+    public double getRubles() {
+        return this.rubles;
     }
 
     public void addRubles(double amount) {
@@ -191,17 +183,22 @@ public class Clan implements Serializable {
         save();
     }
 
-    public void addLevel(int amount) {
-        this.level += amount;
+    public int getLevel() {
+        return (int) level;
+    }
+
+    public double getExactLevel() {
+        return level;
+    }
+
+    public void setLevel(double level) {
+        this.level = level;
         save();
     }
 
-    public int getLevel() {
-        return this.level;
-    }
-
-    public double getRubles() {
-        return this.rubles;
+    public void addLevel(double amount) {
+        this.level += amount;
+        save();
     }
 
     public String getName() {
@@ -287,6 +284,10 @@ public class Clan implements Serializable {
         return warScore;
     }
 
+    public void setWarScore(int warScore) {
+        this.warScore = warScore;
+    }
+
     public void addWarScore(int score) {
         this.warScore += score;
     }
@@ -295,12 +296,12 @@ public class Clan implements Serializable {
         return warParticipants;
     }
 
-    public boolean isWarParticipant(String playerName) {
-        return warParticipants.contains(playerName);
-    }
-
     public void setWarParticipants(List<String> warParticipants) {
         this.warParticipants = warParticipants;
+    }
+
+    public boolean isWarParticipant(String playerName) {
+        return warParticipants.contains(playerName);
     }
 
     public void addWarParticipant(String name) {

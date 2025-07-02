@@ -4,6 +4,7 @@ import net.lielibrary.AnimatedMenu;
 import net.lielibrary.bukkit.Plugin;
 import net.lielibrary.gui.buttons.Button;
 import net.lielibrary.gui.buttons.ButtonListener;
+import net.sxclans.bukkit.Depend;
 import net.sxclans.bukkit.files.FilesManagerInterface;
 import net.sxclans.common.clan.Clan;
 import net.sxclans.common.clan.models.ClanRank;
@@ -52,8 +53,18 @@ public class MemberManageMenu {
                         fileConfig.getString("promote_button"),
                         fileConfig.getString("promote_lore")
                 ),
-                Material.valueOf(fileConfig.getString("filler.material", "GRAY_STAINED_GLASS_PANE")),
-                fileConfig.getIntegerList("filler.slots")
+                Material.valueOf(fileConfig.getString("filler.material")),
+                fileConfig.getIntegerList("filler.slots"),
+
+                fileConfig.getInt("demote_slot"),
+                new ButtonConfig(
+                        Material.REDSTONE,
+                        fileConfig.getString("demote_button"),
+                        fileConfig.getString("demote_lore")
+                ),
+                fileConfig.getString("messages.demote_success"),
+                fileConfig.getString("messages.demoted"),
+                fileConfig.getString("messages.min_rank")
         );
 
         this.menu = Plugin.getMenuManager().createMenuFromConfig(
@@ -66,6 +77,8 @@ public class MemberManageMenu {
     public void open() {
         if (menu == null || config == null) return;
 
+        ClanRank currentRank = clan.getRank(target.getName());
+
         for (int slot : config.fillerSlots()) {
             if (slot >= 0 && slot < config.size() * 9) {
                 menu.setSlot(slot, new Button(config.fillerMaterial())
@@ -76,50 +89,67 @@ public class MemberManageMenu {
         }
 
         menu.setSlot(
+                config.demoteSlot(),
+                config.demoteButton().withSlot(config.demoteSlot()).toButton(event -> {
+                    ClanRank previousRank = currentRank.getPreviousRank();
+                    Optional.ofNullable(previousRank)
+                            .ifPresentOrElse(
+                                    rank -> {
+                                        clan.setRank(target.getName(), rank);
+                                        moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                                config.demoteSuccess()
+                                                        .replace("{player}", target.getName())
+                                                        .replace("{rank}", rank.getDisplayName())));
+                                        Optional.ofNullable(target.getPlayer())
+                                                .filter(Player::isOnline)
+                                                .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                                        config.demoted().replace("{rank}", rank.getDisplayName()))));
+                                        clan.save();
+                                    },
+                                    () -> moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.minRank()))
+                            );
+                    moderator.closeInventory();
+                })
+        );
+
+        menu.setSlot(
                 config.kickSlot(),
-                config.kickButton().withSlot(config.kickSlot()).toButton(new ButtonListener() {
-                    @Override
-                    public void execute(InventoryClickEvent event) {
-                        clan.removeMember(target.getName());
-                        clan.getMemberRanks().remove(target.getName());
-                        moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                config.kickSuccess().replace("{player}", target.getName())));
-                        Optional.ofNullable(target.getPlayer())
-                                .filter(Player::isOnline)
-                                .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                        config.kicked())));
-                        clan.save();
-                        menu.refreshItems();
-                        moderator.closeInventory();
-                    }
+                config.kickButton().withSlot(config.kickSlot()).toButton(event -> {
+                    Depend.getClanManage().removeMember(clan, target.getName());
+                    clan.removeMember(target.getName());
+                    clan.getMemberRanks().remove(target.getName());
+                    moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                            config.kickSuccess().replace("{player}", target.getName())));
+                    Optional.ofNullable(target.getPlayer())
+                            .filter(Player::isOnline)
+                            .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                    config.kicked())));
+                    clan.save();
+                    moderator.closeInventory();
                 })
         );
 
         menu.setSlot(
                 config.promoteSlot(),
-                config.promoteButton().withSlot(config.promoteSlot()).toButton(new ButtonListener() {
-                    @Override
-                    public void execute(InventoryClickEvent event) {
-                        ClanRank currentRank = clan.getRank(target.getName());
-                        ClanRank nextRank = currentRank.getNextRank();
-                        Optional.ofNullable(nextRank)
-                                .ifPresentOrElse(
-                                        rank -> {
-                                            clan.setRank(target.getName(), rank);
-                                            moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                    config.promoteSuccess()
-                                                            .replace("{player}", target.getName())
-                                                            .replace("{rank}", rank.getDisplayName())));
-                                            Optional.ofNullable(target.getPlayer())
-                                                    .filter(Player::isOnline)
-                                                    .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
-                                                            config.promoted().replace("{rank}", rank.getDisplayName()))));
-                                            clan.save();
-                                        },
-                                        () -> moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.maxRank()))
-                                );
-                        moderator.closeInventory();
-                    }
+                config.promoteButton().withSlot(config.promoteSlot()).toButton(event -> {
+                    ClanRank nextRank = currentRank.getNextRank();
+                    Optional.ofNullable(nextRank)
+                            .ifPresentOrElse(
+                                    rank -> {
+                                        clan.setRank(target.getName(), rank);
+                                        moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                                config.promoteSuccess()
+                                                        .replace("{player}", target.getName())
+                                                        .replace("{rank}", rank.getDisplayName())));
+                                        Optional.ofNullable(target.getPlayer())
+                                                .filter(Player::isOnline)
+                                                .ifPresent(player -> player.sendMessage(Plugin.getWithColor().hexToMinecraftColor(
+                                                        config.promoted().replace("{rank}", rank.getDisplayName()))));
+                                        clan.save();
+                                    },
+                                    () -> moderator.sendMessage(Plugin.getWithColor().hexToMinecraftColor(config.maxRank()))
+                            );
+                    moderator.closeInventory();
                 })
         );
 
@@ -167,7 +197,12 @@ public class MemberManageMenu {
             ButtonConfig kickButton,
             ButtonConfig promoteButton,
             Material fillerMaterial,
-            List<Integer> fillerSlots
+            List<Integer> fillerSlots,
+            int demoteSlot,
+            ButtonConfig demoteButton,
+            String demoteSuccess,
+            String demoted,
+            String minRank
     ) {
         public MemberManageConfig {
             if (title == null || kickSuccess == null || kicked == null ||
