@@ -44,7 +44,8 @@ storage:
     username: postgres
     password: ""
 
-war_xp_reward: 100
+war_maxScores: 5
+war_xp_reward: 1.2
 war_duration: 60
 war_start_delay: 10
 default_member_limit: 10
@@ -54,12 +55,22 @@ clan_ranks:
   moderator: " MODERATOR"
   member: " MEMBER"
 invite:
-  invite_message: " &e{sender} приглашает вас в клан  {clan}"
-  sent_message: " &aВы отправили приглашение игроку {target}"
-  timeout: 1200
+  message_request:
+    - ''
+    - '         &6&l⚔ ПРИГЛАШЕНИЕ В КЛАН ⚔'
+    - ''
+    - '      &eВы были приглашены в клан: &b{clan}'
+    - '     &7Чтобы принять или отклонить приглашение,'
+    - '       &7нажмите на одну из кнопок ниже:'
+    - ''
+    - '&8        {accept}             {decline}'
+    - ''
+  invite_message: '&6{sender} &eприглашает вас в клан &b{clan}&e!'
+  sent_message: '&aВы успешно отправили приглашение игроку &b{target}&a.'
+  timeout: 60
   buttons:
-    accept: "✅ &a[ПРИНЯТЬ]"
-    deny: "❌ &c[ОТКЛОНИТЬ]"
+    accept: '&a✅ [ПРИНЯТЬ]'
+    deny: '&c❌ [ОТКЛОНИТЬ]'
   errors:
     max_limit_reached: "&cКлан достиг максимального лимита игроков!"
     already_invited: "&cЭтот игрок уже имеет активное приглашение!"
@@ -84,10 +95,10 @@ holograms:
   money_top:
     enabled: true
     location:
-      world: world
-      x: 100.5
-      y: 64.0
-      z: 200.5
+      world: hola
+      x: 64
+      y: 60
+      z: 649
     update_interval_seconds: 300
     header:
       - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ (МОНЕТЫ) &6&l◈"
@@ -104,10 +115,10 @@ holograms:
   rubles_top:
     enabled: true
     location:
-      world: world
-      x: 100.5
-      y: 64.0
-      z: 200.5
+      world: hola
+      x: 64
+      y: 44
+      z: 649
     update_interval_seconds: 300
     header:
       - "&6&l◈ &e&lТОП-10 КЛАНОВ ПО ВАЛЮТЕ (РУБЛИ) &6&l◈"
@@ -124,10 +135,10 @@ holograms:
   level_top:
     enabled: true
     location:
-      world: world
-      x: 103.5
-      y: 64.0
-      z: 200.5
+      world: hola
+      x: 64
+      y: 50
+      z: 649
     update_interval_seconds: 300
     header:
       - "&b&l◈ &3&lТОП-10 КЛАНОВ ПО УРОВНЮ &b&l◈"
@@ -147,6 +158,7 @@ messages:
   war_start_notification: "&cВойна начнется через {time} секунд. Подготовьтесь!"
   war_end_winner: "&aКлан &e{winner_clan} &aпобедил в войне!"
   war_end_loser: "&cКлан &e{loser_clan} &cпроиграл в войне."
+  war_end_draw: "&eВойна завершилась ничьей."
   all_players_eliminated: "&cВсе участники клана &e{clan_name} &cбыли уничтожены."
   plugin_not_enabled: "Для работы плагина требуется: {pluginName}"
   pvp_disabled: "&cPvP между соклановцами выключено!"
@@ -156,40 +168,14 @@ messages:
   promoted: "&aВы были повышены до {rank}."
   max_rank: "&cЭтот игрок уже имеет максимальный ранг."
 
-war_world_folder: "wars"
-war_template_world: "world"
-war_locations:
-  - clan1_x: 100
-    clan1_y: 64
-    clan1_z: 100
-    clan1_yaw: 0
-    clan1_pitch: 0
-    clan2_x: 200
-    clan2_y: 64
-    clan2_z: 100
-    clan2_yaw: 180
-    clan2_pitch: 0
-  - clan1_x: 1000
-    clan1_y: 64
-    clan1_z: 1000
-    clan1_yaw: 0
-    clan1_pitch: 0
-    clan2_x: 1200
-    clan2_y: 64
-    clan2_z: 1000
-    clan2_yaw: 180
-    clan2_pitch: 0
-
 scoreboard:
   lines:
-    - "&7⏳ Время: &f{time_left}s"
+    - "&7⏳ Время: &f%clanwar_time_left%s"
     - "&8──────────────"
-    - "&b⚔ {clan1_name} &8➤ &a{score1}"
-    - "&c⚔ {clan2_name} &8➤ &c{score2}"
+    - "&b⚔ %clanwar_clan1% &8➤ &a%clanwar_score_clan1%"
+    - "&c⚔ %clanwar_clan2% &8➤ &c%clanwar_score_clan2%"
     - "&8──────────────"
-    - "&e🏆 До победы: &6{max_score}"
-    - "&a🟢 Живые: &a{alive1} &8| &c{alive2}"
-    - "&7☠ Убито: &7{dead1} &8| &7{dead2}"
+    - "&e🏆 До победы: &6%clanwar_max_score%"
   animations:
     title:
       frames:
